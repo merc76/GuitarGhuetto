@@ -18,15 +18,17 @@ int main(int argc, char * argv[]){
     int tempsDebutPartieS = TEMPS_DEBUT_PARTIE_DEFAUT;
     scoreAll_t test;
 
+// si le nombre d'argument est egal a 3 alors on recupere les valeurs
     if(argc == 3){
         nbJoueurMax = atoi(argv[1]);
         tempsDebutPartieS = atoi(argv[2]);
-
+        // si le nombre de joueur est inferieur a 2 ou superieur a 4 alors on affiche un message d'erreur
         if(nbJoueurMax > 4 || nbJoueurMax < 2){
             printf("nombre de joueur incorrect\n");
             printf(" 2 < joueurMax < 4 (inclues)\n");
             exit(EXIT_FAILURE);
         }
+        // si le temps de debut de partie est inferieur a 10 ou superieur a 60 alors on affiche un message d'erreur
         if(tempsDebutPartieS > 280 || tempsDebutPartieS < 60){
             printf("temps avant début de partie inccorect\n");
             printf(" 60sec < temps début < 280sec (inclues)\n");
