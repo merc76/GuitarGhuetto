@@ -12,11 +12,13 @@
 //includes
 #include <stdio.h>
 #include <sys/msg.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <stdlib.h>
 #include "GuitarGhetto.h"
+
+void clientDeroute(int, siginfo_t*, void*);
 
 /**
  * @brief 
@@ -47,6 +49,7 @@ int main(int argc, char * argv[]){
     }
     return 0;
 }
+
 
 /*
     test.mtype = 10;
