@@ -1,37 +1,32 @@
-/*********************************************************************************************************/
-//FICHIER serveur.c
-//auteur MMR, FTAFFIN
-//version 0.1
-/*********************************************************************************************************/
-/*********************************************************************************************************/
+/********************************************************************************************************
+ * @file serveur.c
+ * @author MMR, FTAFFIN
+ * @brief
+ * @version 0.1
+ * @date 2022-11-29
+ *
+ * @copyright Copyright (c) 2022
+ *
+ *********************************************************************************************************/
+
 //includes
 #include <stdio.h>
 #include <sys/msg.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <stdlib.h>
 #include "GuitarGhetto.h"
 
+void clientDeroute(int, siginfo_t*, void*);
 
-static volatile int signalPid = -1;
-void    derouteServeur(int sig, siginfo_t *info, void *context)
-{
-    signalPid = info->si_pid;
-
-    case SIGUSR1:
-        // si le nbjoueur est inferieur a nbjoueurmax alors accept connexion avec SIGUSR1 ou sinon refuser avec SIGUSR2 au client 
-        if(nbJoueur < nbJoueurMax){
-            kill(signalPid, SIGUSR1);
-            nbJoueur++;
-            
-        }else{  
-            kill(signalPid, SIGUSR2);
-        }
-        break;
-        
-}
-
+/**
+ * @brief
+ *
+ * @param argc nombre d'argument
+ * @param argv les arguments
+ * @return int
+ */
 int main(int argc, char * argv[]){
     int nbJoueurMax = MAX_JOUEUR_DEFAUT;
     int tempsDebutPartieS = TEMPS_DEBUT_PARTIE_DEFAUT;
@@ -62,13 +57,14 @@ int main(int argc, char * argv[]){
         action.sa_flags = SA_SIGINFO;
         sigaction(SIGUSR1, &action, NULL);
         pause();
-        pidJoueur[i] = signalPid; 
+        pidJoueur[i] = signalPid;
         signalPid = -1;
-    }  
-    
+    }
+
     }
     return 0;
 }
+
 
 /*
     test.mtype = 10;
@@ -84,4 +80,3 @@ int main(int argc, char * argv[]){
     printf("pifj2 : %d\n", test.content[1].pidJoueur);
     printf("test : %d\n", test.content[2].pidJoueur);
 */
-
