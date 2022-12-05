@@ -1,3 +1,13 @@
+/********************************************************************************************************
+ * @file GuitarGhetto.h
+ * @author MMR, FTAFFIN
+ * @brief 
+ * @version 0.1
+ * @date 2022-11-29
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ *********************************************************************************************************/
 /*********************************************************************************************************/
 //defines
 #define MAX_JOUEUR_DEFAUT 4
@@ -40,14 +50,13 @@ typedef struct scoreAll{
 }scoreAll_t;
 
 //temps restant et nb de joueurs présent (contenu)
-typedef contentPreGame{
+typedef struct contentPreGame{
     int secondeRestant;
     int nbJoueur;
     int pidJoueur[4];
-}
-
+}contentPreGame_t;
 //temps restant et nb de joueurs présent
-typedef preGameLetter{
+typedef struct preGameLetter{
     long mtype;
     contentPreGame_t content;
-}
+}preGameLetter_t;

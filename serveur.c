@@ -1,9 +1,14 @@
-/*********************************************************************************************************/
-//FICHIER serveur.c
-//auteur MMR, FTAFFIN
-//version 0.1
-/*********************************************************************************************************/
-/*********************************************************************************************************/
+/********************************************************************************************************
+ * @file serveur.c
+ * @author MMR, FTAFFIN
+ * @brief 
+ * @version 0.1
+ * @date 2022-11-29
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ *********************************************************************************************************/
+
 //includes
 #include <stdio.h>
 #include <sys/msg.h>
@@ -13,6 +18,13 @@
 #include <stdlib.h>
 #include "GuitarGhetto.h"
 
+/**
+ * @brief 
+ * 
+ * @param argc nombre d'argument
+ * @param argv les arguments
+ * @return int 
+ */
 int main(int argc, char * argv[]){
     int nbJoueurMax = MAX_JOUEUR_DEFAUT;
     int tempsDebutPartieS = TEMPS_DEBUT_PARTIE_DEFAUT;
