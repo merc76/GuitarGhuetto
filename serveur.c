@@ -13,6 +13,25 @@
 #include <stdlib.h>
 #include "GuitarGhetto.h"
 
+
+static volatile int signalPid = -1;
+void    derouteServeur(int sig, siginfo_t *info, void *context)
+{
+    signalPid = info->si_pid;
+
+    case SIGUSR1:
+        // si le nbjoueur est inferieur a nbjoueurmax alors accept connexion avec SIGUSR1 ou sinon refuser avec SIGUSR2 au client 
+        if(nbJoueur < nbJoueurMax){
+            kill(signalPid, SIGUSR1);
+            nbJoueur++;
+            
+        }else{  
+            kill(signalPid, SIGUSR2);
+        }
+        break;
+        
+}
+
 int main(int argc, char * argv[]){
     int nbJoueurMax = MAX_JOUEUR_DEFAUT;
     int tempsDebutPartieS = TEMPS_DEBUT_PARTIE_DEFAUT;
@@ -34,6 +53,19 @@ int main(int argc, char * argv[]){
             printf(" 60sec < temps début < 280sec (inclues)\n");
             exit(EXIT_FAILURE);
         }
+
+    // deroute le signal SIGUSR1 pour recuperer les PID client et les stockers dans un tableau
+    for (int i = 0; i < nbJoueurMax; i++) {
+        struct sigaction action;
+        action.sa_sigaction = derouteServeur;
+        sigemptyset(&action.sa_mask);
+        action.sa_flags = SA_SIGINFO;
+        sigaction(SIGUSR1, &action, NULL);
+        pause();
+        pidJoueur[i] = signalPid; 
+        signalPid = -1;
+    }  
+    
     }
     return 0;
 }
@@ -52,3 +84,4 @@ int main(int argc, char * argv[]){
     printf("pifj2 : %d\n", test.content[1].pidJoueur);
     printf("test : %d\n", test.content[2].pidJoueur);
 */
+
