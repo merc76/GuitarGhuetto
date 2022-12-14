@@ -12,6 +12,7 @@
 #include <sys/msg.h>
 #include <signal.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
 #include "GuitarGhetto.h"
@@ -23,7 +24,15 @@ int main(){
     struct sigaction sa;
     sa.sa_flags = SA_SIGINFO;
     sa.sa_sigaction = clientDeroute;
-    
+    pid_t pidServeur;
+    char tmp[20];
+
+    printf("bienvenue à vous !!\n merci d'entrer votre code de partie !\n");
+    fgets(tmp, 5, stdin);
+    pidServeur = atoi(tmp);
+    kill(pidServeur, SIGUSR1);
+
+
     //Clear les signaux
     CHECK(sigemptyset(&sa.sa_mask), "[Child] Erreur sigemptyset\n");
 
@@ -33,7 +42,6 @@ int main(){
     CHECK(sigaction(SIGUSR1, &sa, NULL), "Erreur client ne peut pas ajouter SIGUSR1");
     CHECK(sigaction(SIGUSR2, &sa, NULL), "Erreur client ne peut pas ajouter SIGUSR2");
     CHECK(sigaction(SIGALRM, &sa, NULL), "Erreur client ne peut pas ajouter SIGALRM");
-    CHECK(sigaction(SIGINT, &sa, NULL), "Erreur client ne peut pas ajouter SIGINT");
 
     while(1){}
 
@@ -42,10 +50,6 @@ int main(){
 
 void clientDeroute(int sig, siginfo_t *sa, void *context){
     switch (sig) {
-    case SIGINT:
-        printf("[Parent] Signal CTRL+C bloqué\n");
-        break;
-
     case SIGALRM:
         //printf("[Parent] Timeout\n");
         // On arrete le processus fils
@@ -68,6 +72,6 @@ void clientDeroute(int sig, siginfo_t *sa, void *context){
 void CHECK(int code, char * toprint){
     if(code < 0){
         printf("%s \n", toprint);
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 }

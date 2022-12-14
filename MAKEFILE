@@ -1,0 +1,16 @@
+c=gcc
+op=-Wall -Wextra
+l=-lpthread
+
+#il me manque à faire le all avec les .o 
+
+serveur : GuitarGhetto.h serveur.c
+	$(c) $(op) GuitarGhetto.h serveur.c -o serveur
+
+serveur : GuitarGhetto.h client.c
+	$(c) $(op) GuitarGhetto.h client.c -o client
+
+clean :
+	rm *.o
+	rm serveur
+	rm client
