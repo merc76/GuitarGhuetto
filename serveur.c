@@ -1,12 +1,12 @@
 /********************************************************************************************************
  * @file serveur.c
  * @author MMR, FTAFFIN
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2022-11-29
- * 
+ *
  * @copyright Copyright (c) 2022
- * 
+ *
  *********************************************************************************************************/
 
 //includes
@@ -29,11 +29,11 @@ pid_t pidJoueur[MAX_JOUEUR_DEFAUT];
 
 
 /**
- * @brief 
- * 
+ * @brief
+ *
  * @param argc nombre d'argument
  * @param argv les arguments
- * @return int 
+ * @return int
  */
 int main(int argc, char * argv[]){
     scoreAll_t test;
@@ -61,6 +61,19 @@ int main(int argc, char * argv[]){
             printf(" 60sec < temps début < 280sec (inclues)\n");
             exit(EXIT_FAILURE);
         }
+
+    // deroute le signal SIGUSR1 pour recuperer les PID client et les stockers dans un tableau
+    for (int i = 0; i < nbJoueurMax; i++) {
+        struct sigaction action;
+        action.sa_sigaction = derouteServeur;
+        sigemptyset(&action.sa_mask);
+        action.sa_flags = SA_SIGINFO;
+        sigaction(SIGUSR1, &action, NULL);
+        pause();
+        pidJoueur[i] = signalPid;
+        signalPid = -1;
+    }
+
     }
 
     //Clear les signaux
@@ -98,6 +111,7 @@ int main(int argc, char * argv[]){
     printf("pifj2 : %d\n", test.content[1].pidJoueur);
     printf("test : %d\n", test.content[2].pidJoueur);
 */
+<<<<<<< HEAD
 
 
 /**
@@ -146,3 +160,5 @@ void CHECK(int code, char * toprint){
         exit(EXIT_FAILURE);
     }
 }
+=======
+>>>>>>> 42c5ebd3d22faf4aa33bc210d0e73e9939dc4738
