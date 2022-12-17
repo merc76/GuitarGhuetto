@@ -110,9 +110,7 @@ int main(int argc, char * argv[]){
     printf("scorej2 : %d\n", test.content[1].score);
     printf("pifj2 : %d\n", test.content[1].pidJoueur);
     printf("test : %d\n", test.content[2].pidJoueur);
-*/
-<<<<<<< HEAD
-
+/*
 
 /**
  * @brief Modifie le comportement des signaux reçus
@@ -160,5 +158,3 @@ void CHECK(int code, char * toprint){
         exit(EXIT_FAILURE);
     }
 }
-=======
->>>>>>> 42c5ebd3d22faf4aa33bc210d0e73e9939dc4738
