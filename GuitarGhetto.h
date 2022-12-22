@@ -1,3 +1,6 @@
+//pour eviter d'utiliser 2 fois le même header durant la compilation
+#ifndef GUITARGHETTO_H
+#define GUITARGHETTO_H
 /********************************************************************************************************
  * @file GuitarGhetto.h
  * @author MMR, FTAFFIN
@@ -14,6 +17,7 @@
 #define TEMPS_DEBUT_PARTIE_DEFAUT 120
 #define FIC_BAL "./BALREP"
 #define TAILLE_PARTITION 250
+#define NB_PARTITION 3
 
 #define MTYPE_ENVOI_PARTITION 11
 #define MTYPE_DEBUT_PARTIE 12
@@ -22,13 +26,22 @@
 #define MTYPE_FIN_PARTITION 2
 #define MTYPE_FIN_PARTIE 14
 #define MTYPE_PRE_PARTIE 15
+
 /*********************************************************************************************************/
-//strcuture de message
+//variables globales
+
+const char partitionListe[NB_PARTITION][TAILLE_PARTITION] = {
+    "----Z-Z---S-Q--D-S-----Z-Z-D-S----------ZQS-SZ--QS",
+    "----Z-Z---S-Q--D-S-----Z-Z-D-S----------ZQS-SZ--QS",
+    "----Z-Z---S-Q--D-S-----Z-Z-D-S----------ZQS-SZ--QS"
+};
+/*********************************************************************************************************/
+//strcutures de messages
 
 //partition
 typedef struct partitionLettre{
     long mtype;
-    char content[TAILLE_PARTITION];
+    int content;
 }partitionLettre_t;
 
 //score un joueur
@@ -60,3 +73,5 @@ typedef struct preGameLetter{
     long mtype;
     contentPreGame_t content;
 }preGameLetter_t;
+
+#endif

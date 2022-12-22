@@ -5,7 +5,7 @@
  * @version 0.1
  * @date 2022-11-29
  * 
- * @copyright Copyright (c) 2022-2023
+ * @copyright Copyright (c) 2022
  * 
  *********************************************************************************************************/
 #include <stdio.h>
@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <pthread.h>
+#include <ncurses.h>
 #include "time.h"
 #include "GuitarGhetto.h"
 
@@ -52,6 +53,7 @@ char partitionEnCours[TAILLE_PARTITION];
 int monScore;
 preGameLetter_t preGame;
 pid_t pidServeur;
+int flagPartition;
 /*******************************************************************************************************/
 
 /**
@@ -66,12 +68,13 @@ int main(){
     key_t cleServeur;
     int msqidServeur;
     partitionLettre_t partitionAJouer;
-    char tmp[20];
+    char tmp[20], keyPressed;
     pthread_t threadAffichage, threadEnvoieScore, threadReceptionScore;
     time_t debutNote, tempsReaction, finNote;
 
     printf("bienvenue à vous !!\n merci d'entrer votre code de partie !\n");
     fgets(tmp, 6, stdin);
+    
     pidServeur = atoi(tmp);
 
     //Clear les signaux
@@ -99,16 +102,27 @@ int main(){
     pthread_create(&threadAffichage, NULL, routineAffichage, NULL);
     pthread_create(&threadEnvoieScore, NULL, routineEnvoieScore, NULL);
     pthread_create(&threadReceptionScore, NULL, routineReceptionScore, NULL);
-    
+
     do{
         msgrcv(msqidServeur, &preGame, sizeof(preGameLetter_t), MTYPE_PRE_PARTIE | MTYPE_DEBUT_PARTIE, 0664);
         alarm(1);
     }while(preGame.mtype != MTYPE_DEBUT_PARTIE);
     //fin de préparation début de partie
 
+    initscr();
+    //cbreak();
+    //noecho();
+    //nodelay(stdscr, TRUE);
+    //scrollok(stdscr, TRUE);
+
+    flagPartition = 0;
     //partie en cours
-    while(partitionEnCours[0] != '\0'){
-        
+    while(partitionEnCours[flagPartition] != '\0'){
+        time(&debutNote);
+        keyPressed = getch();
+        time(&finNote);
+        printw("clé pressé : %c, temps réaction %f", keyPressed, difftime(debutNote, finNote));
+        flagPartition++;
     }
 
     //préparation fin de partie
