@@ -205,6 +205,83 @@ void *routineReceptionScore(void * noth){
  * @return void* 
  */
 void *routineAffichage(void * noth){
-    //TODO
+// Initialiser la bibliothèque ncursed et créer une fenêtre de jeu
+  initscr();
+  cbreak();
+  noecho();
+  curs_set(FALSE);
+
+  int x = SCREEN_WIDTH / 2;
+  int y = 0;
+  int lineY = SCREEN_HEIGHT - 1;
+
+  char letters[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  int numLetters = sizeof(letters) - 1;
+
+  // Sélectionner aléatoirement une lettre et une vitesse de chute
+  char letter = letters[rand() % numLetters];
+  int speed = 100;
+
+  int score = 0;
+
+  // Dessiner chaque tiret de la ligne de tirets
+  for (int i = 0; i < SCREEN_WIDTH; i++) {
+    mvaddch(lineY, i, '-');
+  }
+
+  // Boucle infinie pour mettre à jour la position de la lettre et de la ligne de tirets
+  while (1) {
+    // Afficher le score actuel de l'utilisateur à l'écran
+    mvprintw(0, 0, "Score : %d", score);
+    // Afficher la lettre à l'écran
+    mvaddch(y, x, letter);
+    refresh();
+
+    // Attendre un peu avant de mettre à jour la position de la lettre et de la ligne de tirets
+    napms(speed);
+
+    // Effacer la lettre de l'écran
+    mvaddch(y, x, ' ');
+
+    // Mettre à jour la position de la lettre et de la ligne de tirets
+    y++;
+    lineY++;
+
+    // Si la lettre atteint le haut du terminal, générer une nouvelle lettre aléatoirement
+    if (y < 0) {
+      y = 0;
+      lineY = SCREEN_HEIGHT - 1;
+      letter = letters[rand() % numLetters];
+    }
+    // Si la lettre atteint le bas de l'écran, lire l'entrée du clavier de l'utilisateur pendant 1 seconde
+    if (y >= SCREEN_HEIGHT) {
+      char ch = 0;
+      timeout(1000);
+      ch = getch();
+
+      // Si la touche pressée correspond à la lettre affichée, augmenter le score de 2 et afficher "PERFECT" pendant 4 secondes
+      if (ch == letter) {
+        score += 2;
+        mvprintw(2, 0, "PERFECT");
+        refresh();
+        napms(4000);
+        mvprintw(2, 0, "       ");
+      }
+      // Si la touche pressée ne correspond pas à la lettre affichée, réinitialiser le score à 0
+      else {
+        score = 0;
+      }
+
+      // Générer une nouvelle lettre aléatoirement
+      y = 0;
+      lineY = SCREEN_HEIGHT - 1;
+      letter = letters[rand() % numLetters];
+    }
+  }
+
+  // Nettoyer la bibliothèque ncursed et fermer la fenêtre de jeu
+  endwin();
+
     pthread_exit;
 }
+
