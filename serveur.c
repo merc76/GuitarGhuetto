@@ -35,7 +35,7 @@ typedef struct joueurMetaData{
 void serveurDeroute(int, siginfo_t*, void*);
 void CHECK(int code, char * toprint);
 void creerQueue(pid_t pid);
-void envoyerPartition(pid_t pid, int partition);
+void envoyerPartition(int msqid, int partition);
 void envoyerLettrePrePartie();
 void lireScoreRoutine();
 /*******************************************************************************************************/
@@ -160,10 +160,12 @@ void CHECK(int code, char * toprint){
  * @param pid le pid du client avec qui on va communiquer
  */
 void creerQueue(pid_t pid){
+    printf("creationSueu");
     metaJoueurs[nbJoueurs].pid = pid;
     metaJoueurs[nbJoueurs].cle = ftok(FIC_BAL, pid);
-    metaJoueurs[nbJoueurs].msqid = msgget(metaJoueurs[nbJoueurs].cle, IPC_CREAT);
+    metaJoueurs[nbJoueurs].msqid = msgget(metaJoueurs[nbJoueurs].cle, IPC_CREAT | 0666 );
     nbJoueurs++;
+    return;
 }
 
 /**
@@ -186,17 +188,14 @@ void detruireQueues(pid_t pid){
  * 
  * @param pid 
  */
-void envoyerPartition(pid_t pid, int partition){
+void envoyerPartition(int msqid, int partition){
     int client, i;
     partitionLettre_t msg;
 
-    for(i=0; i < nbJoueurs; i++){
-        if(metaJoueurs[i].pid == pid) client = i;
-    }
-
     msg.mtype = MTYPE_ENVOI_PARTITION;
-    msg.content = partition;
-    msgsnd(metaJoueurs[i].msqid, &msg, sizeof(msg), 0666);
+    msg.content = 1;
+    //msg.content = partition;
+    msgsnd(msqid, &msg, sizeof(msg), 0666);
     printf("[serveur] partition n°%d envoyée au client n°%d\n", partition, metaJoueurs[i].pid);
 }
 

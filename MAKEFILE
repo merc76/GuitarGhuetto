@@ -1,14 +1,15 @@
-c=gcc
-op=-Wall -Wextra
-l=-lpthread
+C=gcc
+OP=-Wall -Wextra
+L=-lpthread
+N=-lncurses
 
 #il me manque à faire le all
 
 serveur : GuitarGhetto.h serveur.c
-	$(c) $(op) GuitarGhetto.h serveur.c $(l) -o serveur
+	$(C) $(OP) GuitarGhetto.h serveur.c $(L) -o serveur
 
 client : GuitarGhetto.h client.c
-	$(c) $(op) GuitarGhetto.h client.c $(l) -o client
+	$(C) $(OP) GuitarGhetto.h client.c -o client $(L) $(N)
 
 clean :
 	rm *.o

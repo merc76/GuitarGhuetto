@@ -73,9 +73,10 @@ int main(){
     time_t debutNote, tempsReaction, finNote;
 
     printf("bienvenue à vous !!\n merci d'entrer votre code de partie !\n");
-    fgets(tmp, 6, stdin);
+    fgets(tmp, 7, stdin);
     
     pidServeur = atoi(tmp);
+    //printf("atoi : %d", pidServeur);
 
     //Clear les signaux
     CHECK(sigemptyset(&sa.sa_mask), "[Child] Erreur sigemptyset\n");
@@ -93,7 +94,7 @@ int main(){
     //on tampone pour laisser le temps au serveur de créer la BAL
     sleep(1);
     cleServeur = ftok(FIC_BAL, getpid());
-    msqidServeur = msgget(cleServeur, 0666);
+    msqidServeur = msgget(cleServeur, 0444);
     msgrcv(msqidServeur, &partitionAJouer, sizeof(partitionLettre_t), MTYPE_ENVOI_PARTITION, 0664);
     strcpy(partitionEnCours, partitionListe[partitionAJouer.content]);
     printf("client n°%d, la partition n°%d à été chargée\n", getpid(), partitionAJouer.content);
