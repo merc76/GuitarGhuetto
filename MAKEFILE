@@ -4,7 +4,8 @@ L=-lpthread
 N=-lncurses
 
 #il me manque à faire le all
-
+all: serveur client 
+ 
 serveur : GuitarGhetto.h serveur.c
 	$(C) $(OP) GuitarGhetto.h serveur.c $(L) -o serveur
 
