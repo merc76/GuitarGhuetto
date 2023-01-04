@@ -37,6 +37,9 @@
 #define SCORE_BAD 50
 #define SCORE_WORSE -10
 
+#define SCREEN_WIDTH 200
+#define SCREEN_HEIGHT 100
+
 /*******************************************************************************************************/
 //empreintes fonctions
 
@@ -54,6 +57,7 @@ int monScore;
 preGameLetter_t preGame;
 pid_t pidServeur;
 int flagPartition;
+int msqidServeur;
 /*******************************************************************************************************/
 
 /**
@@ -66,7 +70,6 @@ int main(){
     sa.sa_flags = SA_SIGINFO;
     sa.sa_sigaction = clientDeroute;
     key_t cleServeur;
-    int msqidServeur;
     partitionLettre_t partitionAJouer;
     char tmp[20], keyPressed;
     pthread_t threadAffichage, threadEnvoieScore, threadReceptionScore;
@@ -74,7 +77,7 @@ int main(){
 
     printf("bienvenue à vous !!\n merci d'entrer votre code de partie !\n");
     fgets(tmp, 7, stdin);
-    
+    while(tmp[strlen(tmp)] == ' ' || tmp[strlen(tmp)] == '\n') tmp[strlen(tmp) - 1] = '\0';
     pidServeur = atoi(tmp);
     //printf("atoi : %d", pidServeur);
 
@@ -90,44 +93,41 @@ int main(){
 
     //préparation avant la fin de partie
     kill(pidServeur, SIGUSR1);
-
-    //on tampone pour laisser le temps au serveur de créer la BAL
-    sleep(1);
+    sleep(2);
     cleServeur = ftok(FIC_BAL, getpid());
-    msqidServeur = msgget(cleServeur, 0444);
-    msgrcv(msqidServeur, &partitionAJouer, sizeof(partitionLettre_t), MTYPE_ENVOI_PARTITION, 0664);
+    msqidServeur = msgget(cleServeur, 0666);
+    printf("%d\n", cleServeur);
+    printf("%d\n", msqidServeur);
+    printf("Errno : %d\n", errno);
+    msgrcv(msqidServeur, &partitionAJouer, sizeof(partitionAJouer), MTYPE_ENVOI_PARTITION, 0);
+    printf("Errno : %d\n", errno);
     strcpy(partitionEnCours, partitionListe[partitionAJouer.content]);
     printf("client n°%d, la partition n°%d à été chargée\n", getpid(), partitionAJouer.content);
 
     //on créer les 3 autres threads
-    pthread_create(&threadAffichage, NULL, routineAffichage, NULL);
+    //pthread_create(&threadAffichage, NULL, routineAffichage, NULL);
     pthread_create(&threadEnvoieScore, NULL, routineEnvoieScore, NULL);
     pthread_create(&threadReceptionScore, NULL, routineReceptionScore, NULL);
 
     do{
-        msgrcv(msqidServeur, &preGame, sizeof(preGameLetter_t), MTYPE_PRE_PARTIE | MTYPE_DEBUT_PARTIE, 0664);
-        alarm(1);
+        msgrcv(msqidServeur, &preGame, sizeof(preGame), MTYPE_PRE_PARTIE | MTYPE_DEBUT_PARTIE, 0664);
+        //alarm(1);
     }while(preGame.mtype != MTYPE_DEBUT_PARTIE);
     //fin de préparation début de partie
 
-    initscr();
-    //cbreak();
-    //noecho();
-    //nodelay(stdscr, TRUE);
-    //scrollok(stdscr, TRUE);
-
     flagPartition = 0;
     //partie en cours
+    /*
     while(partitionEnCours[flagPartition] != '\0'){
         time(&debutNote);
         keyPressed = getch();
         time(&finNote);
         printw("clé pressé : %c, temps réaction %f", keyPressed, difftime(debutNote, finNote));
         flagPartition++;
-    }
+    }*/
 
     //préparation fin de partie
-    pthread_join(threadAffichage, NULL);
+    //pthread_join(threadAffichage, NULL);
     pthread_join(threadEnvoieScore, NULL);
     pthread_join(threadReceptionScore, NULL);
     while (1)

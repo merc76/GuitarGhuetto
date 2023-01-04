@@ -8,8 +8,8 @@ N=-lncurses
 serveur : GuitarGhetto.h serveur.c
 	$(C) $(OP) GuitarGhetto.h serveur.c $(L) -o serveur
 
-client : GuitarGhetto.h client.c
-	$(C) $(OP) GuitarGhetto.h client.c -o client $(L) $(N)
+client : GuitarGhetto.h client.c $(L) $(N)
+	$(C) $(OP) GuitarGhetto.h client.c $(L) $(N) -o client
 
 clean :
 	rm *.o

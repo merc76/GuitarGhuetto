@@ -35,6 +35,7 @@ typedef struct joueurMetaData{
 void serveurDeroute(int, siginfo_t*, void*);
 void CHECK(int code, char * toprint);
 void creerQueue(pid_t pid);
+void detruireQueues(pid_t pid);
 void envoyerPartition(int msqid, int partition);
 void envoyerLettrePrePartie();
 void lireScoreRoutine();
@@ -118,7 +119,7 @@ void serveurDeroute(int sig, siginfo_t *sa, void *context){
             //on décremente le temps restant et on prépare le prochain envoie
             if(--tempsDebutPartieS > 1){
                 alarm(1);
-                envoyerLettrePrePartie();
+                //envoyerLettrePrePartie();
             }
             //toutes les 5 secondes
             if((tempsDebutPartieS % 5) == 0){
@@ -137,9 +138,11 @@ void serveurDeroute(int sig, siginfo_t *sa, void *context){
             return;
         }       
         printf("[serveur] le joueur n°%d se voit approuver la connexion\n", sa->si_pid);
+        //detruireQueues(sa->si_pid);
         kill(sa->si_pid, SIGUSR1);
         creerQueue(sa->si_pid);
-        envoyerPartition(sa->si_pid, partitionChoisie);
+        printf("on envoie partition à %d \n",metaJoueurs[nbJoueurs - 1].pid);
+        envoyerPartition(nbJoueurs - 1 , partitionChoisie);
         break;
     default:
         break;
@@ -160,11 +163,12 @@ void CHECK(int code, char * toprint){
  * @param pid le pid du client avec qui on va communiquer
  */
 void creerQueue(pid_t pid){
-    printf("creationSueu");
+    printf("creationQueue\n");
     metaJoueurs[nbJoueurs].pid = pid;
     metaJoueurs[nbJoueurs].cle = ftok(FIC_BAL, pid);
-    metaJoueurs[nbJoueurs].msqid = msgget(metaJoueurs[nbJoueurs].cle, IPC_CREAT | 0666 );
+    metaJoueurs[nbJoueurs].msqid = msgget(metaJoueurs[nbJoueurs].cle, IPC_CREAT | IPC_EXCL | 0666);
     nbJoueurs++;
+    printf("fin creationQueue\n");
     return;
 }
 
@@ -188,15 +192,17 @@ void detruireQueues(pid_t pid){
  * 
  * @param pid 
  */
-void envoyerPartition(int msqid, int partition){
+void envoyerPartition(int playerNb, int partition){
     int client, i;
     partitionLettre_t msg;
 
     msg.mtype = MTYPE_ENVOI_PARTITION;
-    msg.content = 1;
-    //msg.content = partition;
-    msgsnd(msqid, &msg, sizeof(msg), 0666);
-    printf("[serveur] partition n°%d envoyée au client n°%d\n", partition, metaJoueurs[i].pid);
+    msg.content = partition;
+    msg.content = partition;
+    printf("%d\n", metaJoueurs[playerNb].cle);
+    msgsnd(metaJoueurs[playerNb].msqid, &msg, sizeof(msg), 0);
+    printf("Errno : %d\n", errno);
+    printf("[serveur] partition n°%d envoyée au client n°%d\n", partition, metaJoueurs[playerNb].pid);
 }
 
 /**
@@ -229,7 +235,7 @@ void envoyerLettrePrePartie(){
         message.content.pidJoueur[i] = metaJoueurs[i].pid;
     }
     for(i=0; i < nbJoueurs; i++){
-        msgsnd(metaJoueurs[i].msqid, &message, sizeof(preGameLetter_t), IPC_NOWAIT | 0666);
+        msgsnd(metaJoueurs[i].msqid, &message, sizeof(preGameLetter_t), IPC_NOWAIT );
     }
     return;
 }
