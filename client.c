@@ -205,8 +205,8 @@ void *routineReceptionScore(void * noth){
  * @param noth 
  * @return void* 
  */
-void *routineAffichage(void * noth){
-// Initialiser la bibliothèque ncursed et créer une fenêtre de jeu
+void *routineAffichage(void * noth) {
+  // Initialiser la bibliothèque ncursed et créer une fenêtre de jeu
   initscr();
   cbreak();
   noecho();
@@ -215,31 +215,34 @@ void *routineAffichage(void * noth){
   int x = SCREEN_WIDTH / 2;
   int y = 0;
   int lineY = SCREEN_HEIGHT - 1;
-
-  char letters[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  int numLetters = sizeof(letters) - 1;
+  int numLetters = sizeof(partitionEnCours) - 1;
 
   // Sélectionner aléatoirement une lettre et une vitesse de chute
-  char letter = letters[rand() % numLetters];
-  int speed = 100;
+  char partitionEnCours = partitionEnCours[rand() % numLetters];
 
-  int score = 0;
+  monScore = 0;
 
-  // Dessiner chaque tiret de la ligne de tirets
+   // Activer l'utilisation de paires de couleurs
+  attron(COLOR_PAIR);
+
+  // Définir une paire de couleurs rouge pour l'arrière-plan et blanche pour le texte
+  init_pair(1, COLOR_RED, COLOR_WHITE);
+
+  // Afficher une ligne rouge en bas de l'écran
   for (int i = 0; i < SCREEN_WIDTH; i++) {
-    mvaddch(lineY, i, '-');
+    mvaddch(lineY, i, '-', COLOR_PAIR(1));
   }
 
   // Boucle infinie pour mettre à jour la position de la lettre et de la ligne de tirets
   while (1) {
     // Afficher le score actuel de l'utilisateur à l'écran
-    mvprintw(0, 0, "Score : %d", score);
+    mvprintw(0, 0, "Score : %d", monScore);
     // Afficher la lettre à l'écran
     mvaddch(y, x, letter);
     refresh();
 
     // Attendre un peu avant de mettre à jour la position de la lettre et de la ligne de tirets
-    napms(speed);
+    napms(TEMPS_PAR_NOTE);
 
     // Effacer la lettre de l'écran
     mvaddch(y, x, ' ');
@@ -257,32 +260,42 @@ void *routineAffichage(void * noth){
     // Si la lettre atteint le bas de l'écran, lire l'entrée du clavier de l'utilisateur pendant 1 seconde
     if (y >= SCREEN_HEIGHT) {
       char ch = 0;
+      int startTime = time(NULL); // Enregistrer l'heure actuelle
       timeout(1000);
       ch = getch();
+      int elapsedTime = time(NULL) - startTime; // Calculer le temps écoulé depuis le début de la lecture de l'entrée du clavier
 
-      // Si la touche pressée correspond à la lettre affichée, augmenter le score de 2 et afficher "PERFECT" pendant 4 secondes
-      if (ch == letter) {
-        score += 2;
+      // Si la touche pressée correspond à la lettre affichée et que le temps écoulé est inférieur à 100ms, augmenter le score de 3 et afficher "PERFECT" pendant 4 secondes
+      if (ch == letter && elapsedTime < DELTA_T_PERFECT) {
+        monScore += 3;
         mvprintw(2, 0, "PERFECT");
         refresh();
         napms(4000);
-        mvprintw(2, 0, "       ");
+        
+      }
+      // Si la touche pressée correspond à la lettre affichée et que le temps écoulé est inférieur à 200ms, augmenter le score de 2 et afficher "GOOD" pendant 4 secondes
+      else if (ch == letter && elapsedTime < DELTA_T_GOOD ) {
+        monScore += 2;
+        mvprintw(2, 0, "GOOD");
+        refresh();
+        napms(4000);
       }
       // Si la touche pressée ne correspond pas à la lettre affichée, réinitialiser le score à 0
       else {
-        score = 0;
+        monScore = 0;
       }
-
+      /*
       // Générer une nouvelle lettre aléatoirement
       y = 0;
       lineY = SCREEN_HEIGHT - 1;
       letter = letters[rand() % numLetters];
+      */
     }
   }
 
   // Nettoyer la bibliothèque ncursed et fermer la fenêtre de jeu
   endwin();
 
-    pthread_exit;
+  pthread_exit;
 }
 
