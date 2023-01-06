@@ -1,4 +1,5 @@
 <a name=" GuitarGhuetto"></a>
+<h3 align="center">GuitarGhuetto</h3>
 
 <!-- Table des matières -->
 <details>
@@ -53,6 +54,6 @@ Il vous faudra donc un terminal Linux et un GCC à jour
 
 Vous pouvez nous contacter à GuitarGhuetto@gmail.com
 
-Project Link: [https://github.com/merc76/GuitarGhuetto](GuitarGhuetto)
+Lien vers le projet : [GuitarGhuetto](https://github.com/merc76/GuitarGhuetto)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
