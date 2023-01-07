@@ -222,57 +222,71 @@ void *routineReceptionScore(void * noth){
  */
 void *routineAffichage(void * noth){
 
-  int monScore = 0; // monScore du joueur 
-  int i; 
+char saisies[sizeof partitionEnCours]; // tableau pour stocker les touches saisies par l'utilisateur 
  
-  initscr(); // initialise l'interface ncursed 
-  noecho(); // désactive l'affichage des caractères saisis par l'utilisateur 
-  curs_set(0); // cache le curseur 
+  int monScore = 0; // monScore du joueur  
+  int i;  
+  
+  initscr(); // initialise l'interface ncursed  
+  noecho(); // désactive l'affichage des caractères saisis par l'utilisateur  
+  curs_set(0); // cache le curseur  
+  
+  for (i = 0; i < strlen(partitionEnCours); i++) {  
+    // affiche le monScore et la partition en cours à partir de la ligne du haut  
+    mvprintw(0, 0, "monScore: %d", monScore);  
+    mvprintw(1, 30, "%c", partitionEnCours[i]);  
+    mvhline(LINES - 1, 0, '-', COLS); // ajoute une ligne de tiret en bas de l'écran  
+    refresh(); // met à jour l'affichage  
+  
+    int j;  
+    for (j = 1; j < LINES; j++) {  
+      // déplace la lettre vers le bas de l'écran  
+      mvprintw(j - 1, 30, " ");  
+      mvprintw(j, 30, "%c", partitionEnCours[i]);  
+      refresh(); // met à jour l'affichage  
+      nanosleep((const struct timespec[]){{0, TEMPS_PAR_NOTE * 1000000L}}, NULL); // attend DELAY ms  
+    }  
  
-  for (i = 0; i < strlen(partitionEnCours); i++) { 
-    // affiche le monScore et la partition en cours à partir de la ligne du haut 
-    mvprintw(0, 0, "monScore: %d", monScore); 
-    mvprintw(1, 30, "%c", partitionEnCours[i]); 
-    mvhline(LINES - 1, 0, '-', COLS); // ajoute une ligne de tiret en bas de l'écran 
-    refresh(); // met à jour l'affichage 
+    // initialise la variable debutNote avec l'heure 
+    // initialise la variable debutNote avec l'heure actuelle 
+    time_t debutNote; 
+    time(&debutNote); 
+  
+    // attend que l'utilisateur appuie sur une touche ou que le délai de 300 ms soit écoulé  
+    timeout(TEMPS_PAR_NOTE); // définit un délai de 300 ms avant que getch() ne renvoie ERR  
+    char c = getch();  
+  
+    // enregistre l'heure actuelle dans la variable finNote 
+    time_t finNote; 
+    time(&finNote); 
  
-    int j; 
-    for (j = 1; j < LINES; j++) { 
-      // déplace la lettre vers le bas de l'écran 
-      mvprintw(j - 1, 30, " "); 
-      mvprintw(j, 30, "%c", partitionEnCours[i]); 
-      refresh(); // met à jour l'affichage 
-      nanosleep((const struct timespec[]){{0, TEMPS_PAR_NOTE * 1000000L}}, NULL); // attend DELAY ms 
-    } 
- 
-    // attend que l'utilisateur appuie sur une touche ou que le délai de 300 ms soit écoulé 
-    timeout(TEMPS_PAR_NOTE); // définit un délai de 300 ms avant que getch() ne renvoie ERR 
-    char c = getch(); 
- 
-    // vérifie si la touche appuyée est la bonne 
-    if (c == partitionEnCours[i]) { 
-      // touche correcte, incrémente le monScore en fonction du délai 
-      if (TEMPS_PAR_NOTE <= 200) { 
-        monScore += 3; 
-        mvprintw(LINES - 1, 0, "PERFECT!"); 
-      } else { 
-        monScore += 1; 
-        mvprintw(LINES - 1, 0, "GOOD!"); 
-      } 
-    } else if (c == ERR) { 
-      // pas de touche appuyée dans le délai de 300 ms 
-      mvprintw(LINES - 1, 0, "MISS..."); 
-    } else { 
-      // touche incorrecte 
-      mvprintw(LINES - 1, 0, "BAD..."); 
-    } 
- 
-    // met à jour l'affichage et attend avant de passer au caractère suivant 
-    refresh(); 
+    // calcule le temps de réaction en utilisant la différence entre debutNote et finNote 
+    double tempsReaction = difftime(debutNote, finNote); 
+  
+    // vérifie si la touche appuyée est la bonne  
+    if (c == partitionEnCours[i]) {  
+      // touche correcte, incrémente le monScore en fonction du délai  
+      if (tempsReaction <= DELTA_T_PERFECT) {  
+        monScore += SCORE_PERFECT;  
+        mvprintw(LINES - 1, 0, "PERFECT!");  
+      } else if (tempsReaction <= DELTA_T_GOOD) {
+        monScore += SCORE_GOOD;  
+        mvprintw(LINES - 1, 0, "GOOD!");  
+      }  else if (tempsReaction <= DELTA_T_BAD) {  
+        monScore += SCORE_BAD;  
+        mvprintw(LINES - 1, 0, "BAD...");  
+      }  else {  
+        // pas de touche appuyée dans le délai de 300 ms 
+        monScore += SCORE_WORSE;  
+        mvprintw(LINES - 1, 0, "MISS...");  
+      }}
+  
+    // met à jour l'affichage et attend avant de passer au caractère suivant  
+    refresh();  
     nanosleep((const struct timespec[]){{0, TEMPS_PAR_NOTE * 1000000L}}, NULL); 
-  } 
- 
-  endwin(); // termine l'interface ncursed 
+    }  
+  
+  endwin(); // termine l'interface ncursed  
     pthread_exit;
 }
 
