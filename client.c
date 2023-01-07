@@ -1,6 +1,6 @@
 /********************************************************************************************************
  * @file client.c
- * @author MMR, FTA
+ * @author MMR, FTAFFIN
  * @brief 
  * @version 0.1
  * @date 2022-11-29
@@ -104,30 +104,40 @@ int main(){
     strcpy(partitionEnCours, partitionListe[partitionAJouer.content]);
     printf("client n°%d, la partition n°%d à été chargée\n", getpid(), partitionAJouer.content);
 
-    //on créer les 3 autres threads
-    //pthread_create(&threadAffichage, NULL, routineAffichage, NULL);
-    pthread_create(&threadEnvoieScore, NULL, routineEnvoieScore, NULL);
-    pthread_create(&threadReceptionScore, NULL, routineReceptionScore, NULL);
+    //on créer les autres threads
 
     do{
-        msgrcv(msqidServeur, &preGame, sizeof(preGame), MTYPE_PRE_PARTIE | MTYPE_DEBUT_PARTIE, 0664);
-        //alarm(1);
-    }while(preGame.mtype != MTYPE_DEBUT_PARTIE);
+        msgrcv(msqidServeur, &preGame, sizeof(preGame), MTYPE_PRE_PARTIE | MTYPE_DEBUT_PARTIE, 0);
+        printf("client n°%d, temps avant début de partie : %d\n", getpid(), preGame.content.secondeRestant);
+        printf("client n°%d, joueurs dans le hub : %d\n", getpid(), preGame.content.nbJoueur);
+    }while(preGame.content.secondeRestant > 0);
+    if(preGame.content.nbJoueur < 2){
+      printf("[client] %d : pas assez de joueurs, fin du programme\n", getpid());
+    }
+
+    pthread_create(&threadEnvoieScore, NULL, routineEnvoieScore, NULL);
+    pthread_create(&threadReceptionScore, NULL, routineReceptionScore, NULL);
     //fin de préparation début de partie
 
     flagPartition = 0;
     //partie en cours
+    pthread_create(&threadAffichage, NULL, routineAffichage, NULL);
     /*
     while(partitionEnCours[flagPartition] != '\0'){
         time(&debutNote);
         keyPressed = getch();
         time(&finNote);
-        printw("clé pressé : %c, temps réaction %f", keyPressed, difftime(debutNote, finNote));
+        tempsReaction = difftime(debutNote, finNote);
+        if(tempsReaction <= DELTA_T_PERFECT) monScore += SCORE_PERFECT;
+        if(tempsReaction <= DELTA_T_GOOD && tempsReaction > DELTA_T_PERFECT) monScore += SCORE_GOOD;
+        if(tempsReaction <= DELTA_T_BAD && tempsReaction > DELTA_T_GOOD) monScore += SCORE_BAD;
+        if(tempsReaction > DELTA_T_BAD) monScore += SCORE_WORSE;
+        printw("clé pressé : %c, temps réaction %f", keyPressed, tempsReaction);
         flagPartition++;
-    }*/
-
+    }
+    */
     //préparation fin de partie
-    //pthread_join(threadAffichage, NULL);
+    pthread_join(threadAffichage, NULL);
     pthread_join(threadEnvoieScore, NULL);
     pthread_join(threadReceptionScore, NULL);
     while (1)
@@ -147,9 +157,6 @@ int main(){
 void clientDeroute(int sig, siginfo_t *sa, void *context){
     switch (sig) {
     case SIGALRM:
-        printf("client n°%d, temps avant début de partie : %d\n", getpid(), preGame.content.secondeRestant);
-        printf("client n°%d, joueurs dans le hub : %d\n", getpid(), preGame.content.nbJoueur);
-
         break;
 
     case SIGUSR1:
@@ -185,8 +192,16 @@ void CHECK(int code, char * toprint){
  * @param noth nothing
  */
 void *routineEnvoieScore(void* noth){
-    //TODO
-    pthread_exit;
+    score1J_t scoreMsg;
+
+    while(true){
+        scoreMsg.mtype = MTYPE_MAJSCORE_1J;
+        scoreMsg.content.pidJoueur = getpid();
+        scoreMsg.content.score = monScore;
+        msgsnd(msqidServeur, &scoreMsg, sizeof(scoreMsg), 0);
+        printf("[routine score] %d : score enoyé au serveur", getpid());
+        sleep(3);
+    }
 }
 
 /**
@@ -205,8 +220,8 @@ void *routineReceptionScore(void * noth){
  * @param noth 
  * @return void* 
  */
-void *routineAffichage(void * noth) {
-  // Initialiser la bibliothèque ncursed et créer une fenêtre de jeu
+void *routineAffichage(void * noth){
+// Initialiser la bibliothèque ncursed et créer une fenêtre de jeu
   initscr();
   cbreak();
   noecho();
@@ -215,34 +230,31 @@ void *routineAffichage(void * noth) {
   int x = SCREEN_WIDTH / 2;
   int y = 0;
   int lineY = SCREEN_HEIGHT - 1;
-  int numLetters = sizeof(partitionEnCours) - 1;
+
+  char letters[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  int numLetters = sizeof(letters) - 1;
 
   // Sélectionner aléatoirement une lettre et une vitesse de chute
-  char partitionEnCours = partitionEnCours[rand() % numLetters];
+  char letter = letters[rand() % numLetters];
+  int speed = 100;
 
-  monScore = 0;
+  int score = 0;
 
-   // Activer l'utilisation de paires de couleurs
-  attron(COLOR_PAIR);
-
-  // Définir une paire de couleurs rouge pour l'arrière-plan et blanche pour le texte
-  init_pair(1, COLOR_RED, COLOR_WHITE);
-
-  // Afficher une ligne rouge en bas de l'écran
+  // Dessiner chaque tiret de la ligne de tirets
   for (int i = 0; i < SCREEN_WIDTH; i++) {
-    mvaddch(lineY, i, '-', COLOR_PAIR(1));
+    mvaddch(lineY, i, '-');
   }
 
   // Boucle infinie pour mettre à jour la position de la lettre et de la ligne de tirets
   while (1) {
     // Afficher le score actuel de l'utilisateur à l'écran
-    mvprintw(0, 0, "Score : %d", monScore);
+    mvprintw(0, 0, "Score : %d", score);
     // Afficher la lettre à l'écran
     mvaddch(y, x, letter);
     refresh();
 
     // Attendre un peu avant de mettre à jour la position de la lettre et de la ligne de tirets
-    napms(TEMPS_PAR_NOTE);
+    napms(speed);
 
     // Effacer la lettre de l'écran
     mvaddch(y, x, ' ');
@@ -260,42 +272,33 @@ void *routineAffichage(void * noth) {
     // Si la lettre atteint le bas de l'écran, lire l'entrée du clavier de l'utilisateur pendant 1 seconde
     if (y >= SCREEN_HEIGHT) {
       char ch = 0;
-      int startTime = time(NULL); // Enregistrer l'heure actuelle
       timeout(1000);
       ch = getch();
-      int elapsedTime = time(NULL) - startTime; // Calculer le temps écoulé depuis le début de la lecture de l'entrée du clavier
 
-      // Si la touche pressée correspond à la lettre affichée et que le temps écoulé est inférieur à 100ms, augmenter le score de 3 et afficher "PERFECT" pendant 4 secondes
-      if (ch == letter && elapsedTime < DELTA_T_PERFECT) {
-        monScore += 3;
+      // Si la touche pressée correspond à la lettre affichée, augmenter le score de 2 et afficher "PERFECT" pendant 4 secondes
+      if (ch == letter) {
+        score += 2;
         mvprintw(2, 0, "PERFECT");
         refresh();
         napms(4000);
-        
-      }
-      // Si la touche pressée correspond à la lettre affichée et que le temps écoulé est inférieur à 200ms, augmenter le score de 2 et afficher "GOOD" pendant 4 secondes
-      else if (ch == letter && elapsedTime < DELTA_T_GOOD ) {
-        monScore += 2;
-        mvprintw(2, 0, "GOOD");
-        refresh();
-        napms(4000);
+        mvprintw(2, 0, "       ");
       }
       // Si la touche pressée ne correspond pas à la lettre affichée, réinitialiser le score à 0
       else {
-        monScore = 0;
+        score = 0;
       }
-      /*
+
       // Générer une nouvelle lettre aléatoirement
       y = 0;
       lineY = SCREEN_HEIGHT - 1;
       letter = letters[rand() % numLetters];
-      */
     }
   }
 
   // Nettoyer la bibliothèque ncursed et fermer la fenêtre de jeu
   endwin();
 
-  pthread_exit;
+    pthread_exit;
 }
+
 

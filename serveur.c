@@ -1,6 +1,6 @@
 /********************************************************************************************************
  * @file serveur.c
- * @author MMR, FTA
+ * @author MMR, FTAFFIN
  * @brief
  * @version 0.1
  * @date 2022-11-29
@@ -38,7 +38,7 @@ void creerQueue(pid_t pid);
 void detruireQueues(pid_t pid);
 void envoyerPartition(int msqid, int partition);
 void envoyerLettrePrePartie();
-void lireScoreRoutine();
+void * lireScoreRoutine();
 /*******************************************************************************************************/
 //global var
 int nbJoueurs, tempsDebutPartieS, nbJoueurMax;
@@ -57,6 +57,7 @@ int main(int argc, char * argv[]){
     struct sigaction sa;
     sa.sa_flags = SA_SIGINFO;
     sa.sa_sigaction = serveurDeroute;
+    pthread_t threadLireScore;
 
     //on apllique les valeurs par défauts
     tempsDebutPartieS = TEMPS_DEBUT_PARTIE_DEFAUT;
@@ -95,9 +96,11 @@ int main(int argc, char * argv[]){
     printf("[serveur] la partie commencera dans %d secondes\n", tempsDebutPartieS);
     alarm(1);
 
+    pthread_create(&threadLireScore, NULL, lireScoreRoutine, NULL);
     while(1){
         
     }
+    pthread_join(threadLireScore, NULL);
 
     //TODO : supprimer les BAL
 
@@ -117,15 +120,18 @@ void serveurDeroute(int sig, siginfo_t *sa, void *context){
         //si je me suis envoyé une alarme (toutes les secondes)
         if(sa->si_pid = getpid()){
             //on décremente le temps restant et on prépare le prochain envoie
-            if(--tempsDebutPartieS > 1){
+            if(--tempsDebutPartieS >= 0){
                 alarm(1);
-                //envoyerLettrePrePartie();
+                envoyerLettrePrePartie();
             }
             //toutes les 5 secondes
             if((tempsDebutPartieS % 5) == 0){
                 printf("[serveur] la partie commencera dans %d secondes\n", tempsDebutPartieS);
                 printf("[serveur] %d joueurs présents dans la partie \n", nbJoueurs);
-            } 
+            }
+            if(tempsDebutPartieS == 0 && nbJoueurs < 2){
+                printf("[serveur] pas assez de joueurs, fin du programme\n");
+            }
         }
         break;
 
@@ -210,12 +216,12 @@ void envoyerPartition(int playerNb, int partition){
  * quand les 4 score ont été mo
  * 
  */
-void LireScoreRoutine(){
+void * lireScoreRoutine(){
     int nbClient;
     score1J_t score;
 
     for(nbClient = 0; nbClient < nbJoueurs; nbClient = ((nbClient + 1) % nbJoueurs)){
-        msgrcv(metaJoueurs[nbClient].msqid, &score, sizeof(score1J_t), MTYPE_MAJSCORE_1J, IPC_NOWAIT | 0666);
+        msgrcv(metaJoueurs[nbClient].msqid, &score, sizeof(score1J_t), MTYPE_MAJSCORE_1J, 0);
         metaJoueurs[nbClient].score = score.content.score;
     }
 }
@@ -230,12 +236,15 @@ void envoyerLettrePrePartie(){
 
     message.mtype = MTYPE_PRE_PARTIE;
     message.content.nbJoueur = nbJoueurs;
+    message.content.secondeRestant = tempsDebutPartieS;
 
     for(i=0; i < nbJoueurs; i++){
         message.content.pidJoueur[i] = metaJoueurs[i].pid;
     }
     for(i=0; i < nbJoueurs; i++){
-        msgsnd(metaJoueurs[i].msqid, &message, sizeof(preGameLetter_t), IPC_NOWAIT );
+        msgsnd(metaJoueurs[i].msqid, &message, sizeof(preGameLetter_t), 0 );
     }
+    //printf("prepartie envoyé à tous les joueurs\n");
     return;
 }
+
