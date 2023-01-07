@@ -217,95 +217,72 @@ void *routineReceptionScore(void * noth){
  * @return void* 
  */
 void *routineAffichage(void * noth){
-// Initialiser la bibliothèque ncursed et créer une fenêtre de jeu
-  initscr();
-  cbreak();
-  noecho();
-  curs_set(FALSE);
 
-  int x = SCREEN_WIDTH / 2;
-  int y = 0;
-  int lineY = SCREEN_HEIGHT - 1;
-  int numLetters = sizeof(partitionEnCours) - 1;
-  /* 
-  // Sélectionner aléatoirement une lettre et une vitesse de chute
-  char partitionEnCours = partitionEnCours[rand() % numLetters];
-
-  monScore = 0;
-
-   // Activer l'utilisation de paires de couleurs
-  attron(COLOR_PAIR);
-
-  // Dessiner chaque tiret de la ligne de tirets
-  for (int i = 0; i < SCREEN_WIDTH; i++) {
-    mvaddch(lineY, i, '-', COLOR_PAIR(1));
-  }
-
-  // Boucle infinie pour mettre à jour la position de la lettre et de la ligne de tirets
-  while (1) {
-    // Afficher le score actuel de l'utilisateur à l'écran
-    mvprintw(0, 0, "Score : %d", monScore);
-    // Afficher la lettre à l'écran
-    /*
-    mvaddch(y, x, letter);
-    refresh();
-
-    // Attendre un peu avant de mettre à jour la position de la lettre et de la ligne de tirets
-     napms(TEMPS_PAR_NOTE);
-
-    // Effacer la lettre de l'écran
-    mvaddch(y, x, ' ');
-
-    // Mettre à jour la position de la lettre et de la ligne de tirets
-    y++;
-    lineY++;
-
-    // Si la lettre atteint le haut du terminal, générer une nouvelle lettre aléatoirement
-    if (y < 0) {
-      y = 0;
-      lineY = SCREEN_HEIGHT - 1;
-      letter = letters[rand() % numLetters];
-    }
-    // Si la lettre atteint le bas de l'écran, lire l'entrée du clavier de l'utilisateur pendant 1 seconde
-    if (y >= SCREEN_HEIGHT) {
-      char ch = 0;
-      int startTime = time(NULL); // Enregistrer l'heure actuelle
-      timeout(1000);
-      ch = getch();
-      int elapsedTime = time(NULL) - startTime; // Calculer le temps écoulé depuis le début de la lecture de l'entrée du clavier
-
-      // Si la touche pressée correspond à la lettre affichée et que le temps écoulé est inférieur à 100ms, augmenter le score de 3 et afficher "PERFECT" pendant 4 secondes
-      if (ch == letter && elapsedTime < DELTA_T_PERFECT) {
-        monScore += 3;
-        mvprintw(2, 0, "PERFECT");
-        refresh();
-        napms(4000);
-        mvprintw(2, 0, "       ");
-       }
-       
-      // Si la touche pressée correspond à la lettre affichée et que le temps écoulé est inférieur à 200ms, augmenter le score de 2 et afficher "GOOD" pendant 4 secondes
-      else if (ch == letter && elapsedTime < DELTA_T_GOOD ) {
-        monScore += 2;
-        mvprintw(2, 0, "GOOD");
-        refresh();
-        napms(4000);
-        }
-      // Si la touche pressée ne correspond pas à la lettre affichée, réinitialiser le score à 0
-      else {
-        monScore = 0;
-        }
-*//*
-              // Générer une nouvelle lettre aléatoirement
-      y = 0;
-      lineY = SCREEN_HEIGHT - 1;
-      letter = letters[rand() % numLetters];
-    }
-    
-  }
-*/
-  // Nettoyer la bibliothèque ncursed et fermer la fenêtre de jeu
-  endwin();
-
+char saisies[sizeof partitionEnCours]; // tableau pour stocker les touches saisies par l'utilisateur 
+ 
+  int monScore = 0; // monScore du joueur  
+  int i;  
+  
+  initscr(); // initialise l'interface ncursed  
+  noecho(); // désactive l'affichage des caractères saisis par l'utilisateur  
+  curs_set(0); // cache le curseur  
+  
+  for (i = 0; i < strlen(partitionEnCours); i++) {  
+    // affiche le monScore et la partition en cours à partir de la ligne du haut  
+    mvprintw(0, 0, "monScore: %d", monScore);  
+    mvprintw(1, 30, "%c", partitionEnCours[i]);  
+    mvhline(LINES - 1, 0, '-', COLS); // ajoute une ligne de tiret en bas de l'écran  
+    refresh(); // met à jour l'affichage  
+  
+    int j;  
+    for (j = 1; j < LINES; j++) {  
+      // déplace la lettre vers le bas de l'écran  
+      mvprintw(j - 1, 30, " ");  
+      mvprintw(j, 30, "%c", partitionEnCours[i]);  
+      refresh(); // met à jour l'affichage  
+      nanosleep((const struct timespec[]){{0, TEMPS_PAR_NOTE * 1000000L}}, NULL); // attend DELAY ms  
+    }  
+ 
+    // initialise la variable debutNote avec l'heure 
+    // initialise la variable debutNote avec l'heure actuelle 
+    time_t debutNote; 
+    time(&debutNote); 
+  
+    // attend que l'utilisateur appuie sur une touche ou que le délai de 300 ms soit écoulé  
+    timeout(TEMPS_PAR_NOTE); // définit un délai de 300 ms avant que getch() ne renvoie ERR  
+    char c = getch();  
+  
+    // enregistre l'heure actuelle dans la variable finNote 
+    time_t finNote; 
+    time(&finNote); 
+ 
+    // calcule le temps de réaction en utilisant la différence entre debutNote et finNote 
+    double tempsReaction = difftime(debutNote, finNote); 
+  
+    // vérifie si la touche appuyée est la bonne  
+    if (c == partitionEnCours[i]) {  
+      // touche correcte, incrémente le monScore en fonction du délai  
+      if (tempsReaction <= DELTA_T_PERFECT) {  
+        monScore += SCORE_PERFECT;  
+        mvprintw(LINES - 1, 0, "PERFECT!");  
+      } else if (tempsReaction <= DELTA_T_GOOD) {
+        monScore += SCORE_GOOD;  
+        mvprintw(LINES - 1, 0, "GOOD!");  
+      }  else if (tempsReaction <= DELTA_T_BAD) {  
+        monScore += SCORE_BAD;  
+        mvprintw(LINES - 1, 0, "BAD...");  
+      }  else {  
+        // pas de touche appuyée dans le délai de 300 ms 
+        monScore += SCORE_WORSE;  
+        mvprintw(LINES - 1, 0, "MISS...");  
+      }}
+  
+    // met à jour l'affichage et attend avant de passer au caractère suivant  
+    refresh();  
+    nanosleep((const struct timespec[]){{0, TEMPS_PAR_NOTE * 1000000L}}, NULL); 
+    }  
+  
+  endwin(); // termine l'interface ncursed  
     pthread_exit;
 }
 
