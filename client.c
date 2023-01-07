@@ -61,6 +61,13 @@ pid_t pidServeur;
 contentScore1J_t scoreTousJoueurs[4];
 /*******************************************************************************************************/
 
+void printAllScore(){
+    printf("my Score : %d\n", monScore);
+    for(int i =0; i < nbJoueur; i++){
+        printf("score de %d : %d\n", scoreTousJoueurs[i].pidJoueur, scoreTousJoueurs[i].score);
+    }
+}
+
 /**
  * @brief 
  * 
@@ -120,10 +127,9 @@ int main(){
     pthread_create(&threadEnvoieScore, NULL, routineEnvoieScore, NULL);
     pthread_create(&threadReceptionScore, NULL, routineReceptionScore, NULL);
     //fin de préparation début de partie
-
     flagPartition = 0;
     //partie en cours
-    pthread_create(&threadAffichage, NULL, routineAffichage, NULL);
+    //pthread_create(&threadAffichage, NULL, routineAffichage, NULL);
 
     //le thread rejoins lorsque la partie est terminée
     pthread_join(threadReceptionScore, NULL);
@@ -186,7 +192,7 @@ void *routineEnvoieScore(void* noth){
         scoreMsg.content.pidJoueur = getpid();
         scoreMsg.content.score = monScore;
         msgsnd(msqidServeur, &scoreMsg, sizeof(scoreMsg), 0);
-        printf("[routine score envoie] %d : score enoyé au serveur\n", getpid());
+        printf("[routine score envoie] %d : score enoyé au serveur : %d\n", getpid(), scoreMsg.content.score );
         sleep(3);
     }
 }
@@ -201,11 +207,18 @@ void *routineReceptionScore(void * noth){
     int i;
 
     do{
-        msgrcv(msqidServeur, &scores, sizeof(scores), MTYPE_MAJSCORE_ALL | MTYPE_FIN_PARTIE, 0);
-        for(i =0; i < nbJoueur; i ++){
-            if(scores.content[i].pidJoueur != getpid()) scoreTousJoueurs[i] = scores.content[i];
+        printf("[routine score reception] %d : attente score\n", getpid());
+        msgrcv(msqidServeur, &scores, sizeof(scores), MTYPE_MAJSCORE_ALL, IPC_NOWAIT);
+        msgrcv(msqidServeur, &scores, sizeof(scores), MTYPE_FIN_PARTIE, IPC_NOWAIT);
+        for(i =0; i < nbJoueur; i++){
+            if(scores.content[i].pidJoueur != getpid()){
+                scoreTousJoueurs[i].pidJoueur = scores.content[i].pidJoueur;
+                scoreTousJoueurs[i].score = scores.content[i].score;
+            }
         }
         printf("[routine score reception] %d : score reçu depuis le serveur\n", getpid());
+        printAllScore();
+        sleep(1);
     }while(scores.mtype != MTYPE_FIN_PARTIE);
     pthread_exit;
 }

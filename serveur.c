@@ -163,7 +163,7 @@ void serveurDeroute(int sig, siginfo_t *sa, void *context){
 void CHECK(int code, char * toprint){
     if(code < 0){
         printf("%s \n", toprint);
-        exit(EXIT_FAILURE);
+        //exit(EXIT_FAILURE);
     }
 }
 
@@ -222,18 +222,21 @@ void envoyerPartition(int playerNb, int partition){
  * 
  */
 void * lireScoreRoutine(){
-    int nbClient, nbFinPartition=0, res;
+    int nbClient = 0, nbFinPartition=0, i;
     score1J_t score;
 
     //on lis jusqu'a ce que tous les jours aient terminés leur partition
     do{
-        do{
-            res = msgrcv(metaJoueurs[nbClient].msqid, &score, sizeof(score1J_t), MTYPE_MAJSCORE_1J | MTYPE_FIN_PARTITION, IPC_NOWAIT);
+        for(nbClient=0; nbClient < nbJoueurs; nbClient++){
+            msgrcv(metaJoueurs[nbClient].msqid, &score, sizeof(score), MTYPE_MAJSCORE_1J, IPC_NOWAIT);
+            msgrcv(metaJoueurs[nbClient].msqid, &score, sizeof(score), MTYPE_FIN_PARTITION, IPC_NOWAIT);
             metaJoueurs[nbClient].score = score.content.score;
-            printf("score joueur n° %d Receptionned\n", metaJoueurs[nbClient].pid);
-            nbClient = ((nbClient + 1) % nbJoueurs);
-        }while(res < 0);
-    }while(nbFinPartition = nbJoueurs);
+            printf("score joueur n° %d Receptionned : %d \n", metaJoueurs[nbClient].pid, metaJoueurs[nbClient].score);
+            if(score.mtype == MTYPE_FIN_PARTITION) nbFinPartition ++;
+            sleep(1);
+        }    
+    }while(nbFinPartition < nbJoueurs);
+    printf("tous les joueurs on finit leur partition");
 
     pthread_exit;
 }
@@ -277,7 +280,10 @@ void * envoyerScoreRoutine(){
             scores.content[i].score = metaJoueurs[i].score;
         }
         //on envoie à tous les joueurs
-        for(i=0; i < nbJoueurs; i++) msgsnd(metaJoueurs[i].msqid, &scores, sizeof(scores), 0);
+        for(i=0; i < nbJoueurs; i++){
+            msgsnd(metaJoueurs[i].msqid, &scores, sizeof(scores), 0);
+            printf("scoresAll j%d enovyé\n", i);
+        }
         sleep(1);
     }
     //on contruit le message de fin de partie
@@ -287,6 +293,7 @@ void * envoyerScoreRoutine(){
         scores.content[i].score = metaJoueurs[i].score;
     }
     //on envoie à tous les joueurs
+    printf("fin partie enovyé\n");
     for(i=0; i < nbJoueurs; i++) msgsnd(metaJoueurs[i].msqid, &scores, sizeof(scores), 0);
 
     pthread_exit;
