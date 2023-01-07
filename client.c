@@ -203,7 +203,7 @@ void *routineReceptionScore(void * noth){
     do{
         msgrcv(msqidServeur, &scores, sizeof(scores), MTYPE_MAJSCORE_ALL | MTYPE_FIN_PARTIE, 0);
         for(i =0; i < nbJoueur; i ++){
-          if(scores.content->pidJoueur != getpid()) scoreTousJoueurs[i] = scores.content[i];
+            if(scores.content[i].pidJoueur != getpid()) scoreTousJoueurs[i] = scores.content[i];
         }
         printf("[routine score reception] %d : score reçu depuis le serveur\n", getpid());
     }while(scores.mtype != MTYPE_FIN_PARTIE);

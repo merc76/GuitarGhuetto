@@ -261,7 +261,7 @@ void envoyerLettrePrePartie(){
 }
 
 /**
- * @brief enovie à tous les joueurs les scores de leurs adversaires
+ * @brief enovie à tous les joueurs les scores de leurs adversaires puis dors 1 seconde
  * 
  * @return void* 
  */
@@ -278,6 +278,7 @@ void * envoyerScoreRoutine(){
         }
         //on envoie à tous les joueurs
         for(i=0; i < nbJoueurs; i++) msgsnd(metaJoueurs[i].msqid, &scores, sizeof(scores), 0);
+        sleep(1);
     }
     //on contruit le message de fin de partie
     scores.mtype = MTYPE_FIN_PARTIE;
