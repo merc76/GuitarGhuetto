@@ -35,15 +35,17 @@ typedef struct joueurMetaData{
 void serveurDeroute(int, siginfo_t*, void*);
 void CHECK(int code, char * toprint);
 void creerQueue(pid_t pid);
-void detruireQueues(pid_t pid);
+void detruireQueues();
 void envoyerPartition(int msqid, int partition);
 void envoyerLettrePrePartie();
 void * lireScoreRoutine();
+void * envoyerScoreRoutine();
 /*******************************************************************************************************/
 //global var
 int nbJoueurs, tempsDebutPartieS, nbJoueurMax;
-joueurMetaData_t metaJoueurs[4];
+joueurMetaData_t metaJoueurs[4];//les données sur tous les joueurs
 int partitionChoisie;
+int finPartie;//pour annonceer au thread envoyer score d'arrêter
 /*******************************************************************************************************/
 /**
  * @brief
@@ -57,7 +59,7 @@ int main(int argc, char * argv[]){
     struct sigaction sa;
     sa.sa_flags = SA_SIGINFO;
     sa.sa_sigaction = serveurDeroute;
-    pthread_t threadLireScore;
+    pthread_t threadLireScore, threadEnvoiScore;
 
     //on apllique les valeurs par défauts
     tempsDebutPartieS = TEMPS_DEBUT_PARTIE_DEFAUT;
@@ -96,13 +98,16 @@ int main(int argc, char * argv[]){
     printf("[serveur] la partie commencera dans %d secondes\n", tempsDebutPartieS);
     alarm(1);
 
-    pthread_create(&threadLireScore, NULL, lireScoreRoutine, NULL);
-    while(1){
-        
+    while(tempsDebutPartieS > 0){
     }
-    pthread_join(threadLireScore, NULL);
 
-    //TODO : supprimer les BAL
+    pthread_create(&threadLireScore, NULL, lireScoreRoutine, NULL);
+    pthread_create(&threadEnvoiScore, NULL, envoyerScoreRoutine, NULL);
+    pthread_join(threadLireScore, NULL);
+    //si on arrive ici c'est que tous les joueurs ont finis leurs partie
+    finPartie = 1;
+    sleep(10);
+    detruireQueues();
 
     return 0;
 }
@@ -144,10 +149,10 @@ void serveurDeroute(int sig, siginfo_t *sa, void *context){
             return;
         }       
         printf("[serveur] le joueur n°%d se voit approuver la connexion\n", sa->si_pid);
-        //detruireQueues(sa->si_pid);
         kill(sa->si_pid, SIGUSR1);
         creerQueue(sa->si_pid);
         printf("on envoie partition à %d \n",metaJoueurs[nbJoueurs - 1].pid);
+        //usleep(500);
         envoyerPartition(nbJoueurs - 1 , partitionChoisie);
         break;
     default:
@@ -171,8 +176,8 @@ void CHECK(int code, char * toprint){
 void creerQueue(pid_t pid){
     printf("creationQueue\n");
     metaJoueurs[nbJoueurs].pid = pid;
-    metaJoueurs[nbJoueurs].cle = ftok(FIC_BAL, pid);
-    metaJoueurs[nbJoueurs].msqid = msgget(metaJoueurs[nbJoueurs].cle, IPC_CREAT | IPC_EXCL | 0666);
+    CHECK(metaJoueurs[nbJoueurs].cle = ftok(FIC_BAL, pid), "problème ftok");
+    CHECK(metaJoueurs[nbJoueurs].msqid = msgget(metaJoueurs[nbJoueurs].cle, IPC_CREAT | IPC_EXCL | 0666), "problème msgget");
     nbJoueurs++;
     printf("fin creationQueue\n");
     return;
@@ -183,13 +188,13 @@ void creerQueue(pid_t pid){
  * 
  * @param pid le pid du client associé à cette BAL
  */
-void detruireQueues(pid_t pid){
+void detruireQueues(){
     int i;
-    char scoreS[12];
+    char tmp[100];
 
-    for(i=0; i<nbJoueurs; i++){
-        sprintf(scoreS, "%d", metaJoueurs[i].score);
-        CHECK(msgctl(metaJoueurs[i].msqid, IPC_RMID, NULL), strcat("erreur ne peut pas supprimer la queue n°", scoreS));
+    for(i=nbJoueurs - 1 ; i >= 0; i--){
+        sprintf(tmp, "erreur suppression queue pid n° %d", metaJoueurs[i].pid);
+        CHECK(msgctl(metaJoueurs[i].msqid, IPC_RMID, NULL), tmp);
     }
 }
 
@@ -205,7 +210,7 @@ void envoyerPartition(int playerNb, int partition){
     msg.mtype = MTYPE_ENVOI_PARTITION;
     msg.content = partition;
     msg.content = partition;
-    printf("%d\n", metaJoueurs[playerNb].cle);
+    printf("clé : %d\n", metaJoueurs[playerNb].cle);
     msgsnd(metaJoueurs[playerNb].msqid, &msg, sizeof(msg), 0);
     printf("Errno : %d\n", errno);
     printf("[serveur] partition n°%d envoyée au client n°%d\n", partition, metaJoueurs[playerNb].pid);
@@ -217,13 +222,20 @@ void envoyerPartition(int playerNb, int partition){
  * 
  */
 void * lireScoreRoutine(){
-    int nbClient;
+    int nbClient, nbFinPartition=0, res;
     score1J_t score;
 
-    for(nbClient = 0; nbClient < nbJoueurs; nbClient = ((nbClient + 1) % nbJoueurs)){
-        msgrcv(metaJoueurs[nbClient].msqid, &score, sizeof(score1J_t), MTYPE_MAJSCORE_1J, 0);
-        metaJoueurs[nbClient].score = score.content.score;
-    }
+    //on lis jusqu'a ce que tous les jours aient terminés leur partition
+    do{
+        do{
+            res = msgrcv(metaJoueurs[nbClient].msqid, &score, sizeof(score1J_t), MTYPE_MAJSCORE_1J | MTYPE_FIN_PARTITION, IPC_NOWAIT);
+            metaJoueurs[nbClient].score = score.content.score;
+            printf("score joueur n° %d Receptionned\n", metaJoueurs[nbClient].pid);
+            nbClient = ((nbClient + 1) % nbJoueurs);
+        }while(res < 0);
+    }while(nbFinPartition = nbJoueurs);
+
+    pthread_exit;
 }
 
 /**
@@ -242,9 +254,39 @@ void envoyerLettrePrePartie(){
         message.content.pidJoueur[i] = metaJoueurs[i].pid;
     }
     for(i=0; i < nbJoueurs; i++){
-        msgsnd(metaJoueurs[i].msqid, &message, sizeof(preGameLetter_t), 0 );
+        CHECK(msgsnd(metaJoueurs[i].msqid, &message, sizeof(preGameLetter_t), 0 ), "problème msgsnd");
     }
     //printf("prepartie envoyé à tous les joueurs\n");
     return;
 }
 
+/**
+ * @brief enovie à tous les joueurs les scores de leurs adversaires
+ * 
+ * @return void* 
+ */
+void * envoyerScoreRoutine(){
+    scoreAll_t scores;
+    int i;
+
+    while(!finPartie){
+        //on contruit le message
+        scores.mtype = MTYPE_MAJSCORE_ALL;
+        for(i=0; i < nbJoueurs; i++){
+            scores.content[i].pidJoueur = metaJoueurs[i].pid;
+            scores.content[i].score = metaJoueurs[i].score;
+        }
+        //on envoie à tous les joueurs
+        for(i=0; i < nbJoueurs; i++) msgsnd(metaJoueurs[i].msqid, &scores, sizeof(scores), 0);
+    }
+    //on contruit le message de fin de partie
+    scores.mtype = MTYPE_FIN_PARTIE;
+    for(i=0; i < nbJoueurs; i++){
+        scores.content[i].pidJoueur = metaJoueurs[i].pid;
+        scores.content[i].score = metaJoueurs[i].score;
+    }
+    //on envoie à tous les joueurs
+    for(i=0; i < nbJoueurs; i++) msgsnd(metaJoueurs[i].msqid, &scores, sizeof(scores), 0);
+
+    pthread_exit;
+}

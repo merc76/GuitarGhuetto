@@ -47,17 +47,18 @@ void clientDeroute(int, siginfo_t*, void*);
 void *routineAffichage(void *);
 void *routineEnvoieScore(void *);
 void *routineReceptionScore(void *);
-contentScore1J_t scoreTousJoueurs;
 
 /*******************************************************************************************************/
 // variables globales
 
 char partitionEnCours[TAILLE_PARTITION];
 int monScore;
-preGameLetter_t preGame;
-pid_t pidServeur;
 int flagPartition;
 int msqidServeur;
+int nbJoueur;
+preGameLetter_t preGame;
+pid_t pidServeur;
+contentScore1J_t scoreTousJoueurs[4];
 /*******************************************************************************************************/
 
 /**
@@ -96,24 +97,25 @@ int main(){
     sleep(2);
     cleServeur = ftok(FIC_BAL, getpid());
     msqidServeur = msgget(cleServeur, 0666);
-    printf("%d\n", cleServeur);
-    printf("%d\n", msqidServeur);
+    //printf("%d\n", cleServeur);
+    //printf("%d\n", msqidServeur);
     printf("Errno : %d\n", errno);
     msgrcv(msqidServeur, &partitionAJouer, sizeof(partitionAJouer), MTYPE_ENVOI_PARTITION, 0);
     printf("Errno : %d\n", errno);
     strcpy(partitionEnCours, partitionListe[partitionAJouer.content]);
     printf("client n°%d, la partition n°%d à été chargée\n", getpid(), partitionAJouer.content);
 
-    //on créer les autres threads
-
     do{
         msgrcv(msqidServeur, &preGame, sizeof(preGame), MTYPE_PRE_PARTIE | MTYPE_DEBUT_PARTIE, 0);
         printf("client n°%d, temps avant début de partie : %d\n", getpid(), preGame.content.secondeRestant);
         printf("client n°%d, joueurs dans le hub : %d\n", getpid(), preGame.content.nbJoueur);
     }while(preGame.content.secondeRestant > 0);
+
     if(preGame.content.nbJoueur < 2){
       printf("[client] %d : pas assez de joueurs, fin du programme\n", getpid());
     }
+
+    nbJoueur = preGame.content.nbJoueur;
 
     pthread_create(&threadEnvoieScore, NULL, routineEnvoieScore, NULL);
     pthread_create(&threadReceptionScore, NULL, routineReceptionScore, NULL);
@@ -122,28 +124,13 @@ int main(){
     flagPartition = 0;
     //partie en cours
     pthread_create(&threadAffichage, NULL, routineAffichage, NULL);
-    /*
-    while(partitionEnCours[flagPartition] != '\0'){
-        time(&debutNote);
-        keyPressed = getch();
-        time(&finNote);
-        tempsReaction = difftime(debutNote, finNote);
-        if(tempsReaction <= DELTA_T_PERFECT) monScore += SCORE_PERFECT;
-        if(tempsReaction <= DELTA_T_GOOD && tempsReaction > DELTA_T_PERFECT) monScore += SCORE_GOOD;
-        if(tempsReaction <= DELTA_T_BAD && tempsReaction > DELTA_T_GOOD) monScore += SCORE_BAD;
-        if(tempsReaction > DELTA_T_BAD) monScore += SCORE_WORSE;
-        printw("clé pressé : %c, temps réaction %f", keyPressed, tempsReaction);
-        flagPartition++;
-    }
-    */
-    //préparation fin de partie
+
+    //le thread rejoins lorsque la partie est terminée
+    pthread_join(threadReceptionScore, NULL);
     pthread_join(threadAffichage, NULL);
     pthread_join(threadEnvoieScore, NULL);
-    pthread_join(threadReceptionScore, NULL);
-    while (1)
-    {
-    }
-   
+    
+
     return 0;
 }
 
@@ -194,12 +181,12 @@ void CHECK(int code, char * toprint){
 void *routineEnvoieScore(void* noth){
     score1J_t scoreMsg;
 
-    while(true){
+    while(1){
         scoreMsg.mtype = MTYPE_MAJSCORE_1J;
         scoreMsg.content.pidJoueur = getpid();
         scoreMsg.content.score = monScore;
         msgsnd(msqidServeur, &scoreMsg, sizeof(scoreMsg), 0);
-        printf("[routine score] %d : score enoyé au serveur", getpid());
+        printf("[routine score envoie] %d : score enoyé au serveur\n", getpid());
         sleep(3);
     }
 }
@@ -211,7 +198,15 @@ void *routineEnvoieScore(void* noth){
  */
 void *routineReceptionScore(void * noth){
     scoreAll_t scores;
-    msgrcv(msqidServeur, &scores, sizeof(scores), MTYPE_MAJSCORE_ALL, 0);
+    int i;
+
+    do{
+        msgrcv(msqidServeur, &scores, sizeof(scores), MTYPE_MAJSCORE_ALL | MTYPE_FIN_PARTIE, 0);
+        for(i =0; i < nbJoueur; i ++){
+          if(scores.content->pidJoueur != getpid()) scoreTousJoueurs[i] = scores.content[i];
+        }
+        printf("[routine score reception] %d : score reçu depuis le serveur\n", getpid());
+    }while(scores.mtype != MTYPE_FIN_PARTIE);
     pthread_exit;
 }
 
@@ -232,7 +227,7 @@ void *routineAffichage(void * noth){
   int y = 0;
   int lineY = SCREEN_HEIGHT - 1;
   int numLetters = sizeof(partitionEnCours) - 1;
-
+  /* 
   // Sélectionner aléatoirement une lettre et une vitesse de chute
   char partitionEnCours = partitionEnCours[rand() % numLetters];
 
@@ -251,6 +246,7 @@ void *routineAffichage(void * noth){
     // Afficher le score actuel de l'utilisateur à l'écran
     mvprintw(0, 0, "Score : %d", monScore);
     // Afficher la lettre à l'écran
+    /*
     mvaddch(y, x, letter);
     refresh();
 
@@ -286,6 +282,7 @@ void *routineAffichage(void * noth){
         napms(4000);
         mvprintw(2, 0, "       ");
        }
+       
       // Si la touche pressée correspond à la lettre affichée et que le temps écoulé est inférieur à 200ms, augmenter le score de 2 et afficher "GOOD" pendant 4 secondes
       else if (ch == letter && elapsedTime < DELTA_T_GOOD ) {
         monScore += 2;
@@ -297,16 +294,15 @@ void *routineAffichage(void * noth){
       else {
         monScore = 0;
         }
-        /*
+*//*
               // Générer une nouvelle lettre aléatoirement
       y = 0;
       lineY = SCREEN_HEIGHT - 1;
       letter = letters[rand() % numLetters];
-        */
-
     }
+    
   }
-
+*/
   // Nettoyer la bibliothèque ncursed et fermer la fenêtre de jeu
   endwin();
 

@@ -1,17 +1,15 @@
-C=gcc
-OP=-Wall -Wextra
-L=-lpthread
+CC=gcc
+CFLAGS=-Wall -Wextra -Wno-unused-parameter
+P=-pthread
 N=-lncurses
 
-all: serveur client 
+serveur: serveur.c serveur.h GuitarGhetto.h 
+    $(CC) $(CFLAGS) serveur.c -o serveur -L/usr/lib/ -lpthread
  
-serveur : GuitarGhetto.h serveur.c
-	$(C) $(OP) GuitarGhetto.h serveur.c $(L) -o serveur
+client: client.c client.h Gdefinitions.h
+    $(CC) $(CFLAGS) client.c -o client $(L) $(N)
 
-client : GuitarGhetto.h client.c $(L) $(N)
-	$(C) $(OP) GuitarGhetto.h client.c $(L) $(N) -o client
-
-clean :
+clean:
 	rm *.o
 	rm serveur
 	rm client
