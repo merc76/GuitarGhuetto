@@ -21,7 +21,6 @@
 #include <ncurses.h>
 #include "time.h"
 #include "GuitarGhetto.h"
-
 /*******************************************************************************************************/
 //constantes
 
@@ -48,6 +47,7 @@ void clientDeroute(int, siginfo_t*, void*);
 void *routineAffichage(void *);
 void *routineEnvoieScore(void *);
 void *routineReceptionScore(void *);
+contentScore1J_t scoreTousJoueurs;
 
 /*******************************************************************************************************/
 // variables globales
@@ -210,7 +210,8 @@ void *routineEnvoieScore(void* noth){
  * @param noth nothing
  */
 void *routineReceptionScore(void * noth){
-    //TODO
+    scoreAll_t scores;
+    msgrcv(msqidServeur, &scores, sizeof(scores), MTYPE_MAJSCORE_ALL, 0);
     pthread_exit;
 }
 
