@@ -47,18 +47,20 @@ void clientDeroute(int, siginfo_t*, void*);
 void *routineAffichage(void *);
 void *routineEnvoieScore(void *);
 void *routineReceptionScore(void *);
-
+void attribuerNote(int tempsReaction);
 /*******************************************************************************************************/
 // variables globales
 
 char partitionEnCours[TAILLE_PARTITION];
+char scoreLastNote[30]; //le commentaire sur la dernière note (GOOD, PERFECT, BAD ...)
 int monScore;
-int flagPartition;
-int msqidServeur;
+int flagPartition;//ou en est on de la partition
+int msqidServeur;//le msqid pour échanger avec le serveur
 int nbJoueur;
-preGameLetter_t preGame;
+int finPartie;
+preGameLetter_t preGame;//une variable pour lire les message d'avant début de partie
 pid_t pidServeur;
-contentScore1J_t scoreTousJoueurs[4];
+contentScore1J_t scoreTousJoueurs[4];// les pids et scores des joueurs 
 /*******************************************************************************************************/
 
 void printAllScore(){
@@ -81,7 +83,15 @@ int main(){
     partitionLettre_t partitionAJouer;
     char tmp[20], keyPressed;
     pthread_t threadAffichage, threadEnvoieScore, threadReceptionScore;
-    time_t debutNote, tempsReaction, finNote;
+    struct timespec debutNote, finNote;
+    float tempsReaction;
+
+    //initialisation
+    finPartie = 0;
+    monScore = 0;
+    scoreLastNote[0] = '\0';
+    //TODO : replace alarm with "sleep" to avoid interferences between the signal and the
+    //message queues that also uses signals 
 
     printf("bienvenue à vous !!\n merci d'entrer votre code de partie !\n");
     fgets(tmp, 7, stdin);
@@ -106,20 +116,21 @@ int main(){
     msqidServeur = msgget(cleServeur, 0666);
     //printf("%d\n", cleServeur);
     //printf("%d\n", msqidServeur);
-    printf("Errno : %d\n", errno);
+    //printf("Errno : %d\n", errno);
     msgrcv(msqidServeur, &partitionAJouer, sizeof(partitionAJouer), MTYPE_ENVOI_PARTITION, 0);
-    printf("Errno : %d\n", errno);
+    //printf("Errno : %d\n", errno);
     strcpy(partitionEnCours, partitionListe[partitionAJouer.content]);
-    printf("client n°%d, la partition n°%d à été chargée\n", getpid(), partitionAJouer.content);
+    //printf("client n°%d, la partition n°%s à été chargée\n", getpid(), partitionEnCours);
 
     do{
-        msgrcv(msqidServeur, &preGame, sizeof(preGame), MTYPE_PRE_PARTIE | MTYPE_DEBUT_PARTIE, 0);
+        msgrcv(msqidServeur, &preGame, sizeof(preGame), MTYPE_PRE_PARTIE, 0);
         printf("client n°%d, temps avant début de partie : %d\n", getpid(), preGame.content.secondeRestant);
         printf("client n°%d, joueurs dans le hub : %d\n", getpid(), preGame.content.nbJoueur);
     }while(preGame.content.secondeRestant > 0);
 
     if(preGame.content.nbJoueur < 2){
       printf("[client] %d : pas assez de joueurs, fin du programme\n", getpid());
+      finPartie = 1;
     }
 
     nbJoueur = preGame.content.nbJoueur;
@@ -128,10 +139,9 @@ int main(){
     pthread_create(&threadReceptionScore, NULL, routineReceptionScore, NULL);
     //fin de préparation début de partie
     flagPartition = 0;
+    pthread_create(&threadAffichage, NULL, routineAffichage, NULL);
     //partie en cours
-    //pthread_create(&threadAffichage, NULL, routineAffichage, NULL);
 
-    //le thread rejoins lorsque la partie est terminée
     pthread_join(threadReceptionScore, NULL);
     pthread_join(threadAffichage, NULL);
     pthread_join(threadEnvoieScore, NULL);
@@ -192,7 +202,7 @@ void *routineEnvoieScore(void* noth){
         scoreMsg.content.pidJoueur = getpid();
         scoreMsg.content.score = monScore;
         msgsnd(msqidServeur, &scoreMsg, sizeof(scoreMsg), 0);
-        printf("[routine score envoie] %d : score enoyé au serveur : %d\n", getpid(), scoreMsg.content.score );
+        //printf("[routine score envoie] %d : score enoyé au serveur : %d\n", getpid(), scoreMsg.content.score );
         sleep(3);
     }
 }
@@ -207,7 +217,7 @@ void *routineReceptionScore(void * noth){
     int i;
 
     do{
-        printf("[routine score reception] %d : attente score\n", getpid());
+        //printf("[routine score reception] %d : attente score\n", getpid());
         msgrcv(msqidServeur, &scores, sizeof(scores), MTYPE_MAJSCORE_ALL, IPC_NOWAIT);
         msgrcv(msqidServeur, &scores, sizeof(scores), MTYPE_FIN_PARTIE, IPC_NOWAIT);
         for(i =0; i < nbJoueur; i++){
@@ -216,12 +226,37 @@ void *routineReceptionScore(void * noth){
                 scoreTousJoueurs[i].score = scores.content[i].score;
             }
         }
-        printf("[routine score reception] %d : score reçu depuis le serveur\n", getpid());
-        printAllScore();
+        //printf("[routine score reception] %d : score reçu depuis le serveur\n", getpid());
+        //printAllScore();
         sleep(1);
     }while(scores.mtype != MTYPE_FIN_PARTIE);
     pthread_exit;
 }
+
+/**
+ * @brief recupere un temps en milliseconde et attribut au joueur un score
+ * 
+ * @param tempsReaction le temps en milliseconde
+ */
+void attribuerNote(int tempsReaction){
+    if(tempsReaction <= DELTA_T_PERFECT){
+        monScore += SCORE_PERFECT;
+        strcpy(scoreLastNote, "PERFECT");
+    }
+    if(tempsReaction <= DELTA_T_GOOD && tempsReaction > DELTA_T_PERFECT){
+        monScore += SCORE_GOOD;
+        strcpy(scoreLastNote, "GOOD");
+    } 
+    if(tempsReaction <= DELTA_T_BAD && tempsReaction > DELTA_T_GOOD){
+        monScore += SCORE_BAD;
+        strcpy(scoreLastNote, "BAD");
+    }
+    if(tempsReaction > DELTA_T_BAD){
+        monScore += SCORE_WORSE;
+        strcpy(scoreLastNote, "MISS");
+    }
+}
+
 
 /**
  * @brief affiche une interface plus agréable pour le joueur
@@ -231,71 +266,50 @@ void *routineReceptionScore(void * noth){
  */
 void *routineAffichage(void * noth){
 
-char saisies[sizeof partitionEnCours]; // tableau pour stocker les touches saisies par l'utilisateur 
- 
-  int monScore = 0; // monScore du joueur  
-  int i;  
-  
-  initscr(); // initialise l'interface ncursed  
-  noecho(); // désactive l'affichage des caractères saisis par l'utilisateur  
-  curs_set(0); // cache le curseur  
-  
-  for (i = 0; i < strlen(partitionEnCours); i++) {  
-    // affiche le monScore et la partition en cours à partir de la ligne du haut  
-    mvprintw(0, 0, "monScore: %d", monScore);  
-    mvprintw(1, 30, "%c", partitionEnCours[i]);  
-    mvhline(LINES - 1, 0, '-', COLS); // ajoute une ligne de tiret en bas de l'écran  
-    refresh(); // met à jour l'affichage  
-  
-    int j;  
-    for (j = 1; j < LINES; j++) {  
-      // déplace la lettre vers le bas de l'écran  
-      mvprintw(j - 1, 30, " ");  
-      mvprintw(j, 30, "%c", partitionEnCours[i]);  
-      refresh(); // met à jour l'affichage  
-      nanosleep((const struct timespec[]){{0, TEMPS_PAR_NOTE * 1000000L}}, NULL); // attend DELAY ms  
-    }  
- 
-    // initialise la variable debutNote avec l'heure 
-    // initialise la variable debutNote avec l'heure actuelle 
-    time_t debutNote; 
-    time(&debutNote); 
-  
-    // attend que l'utilisateur appuie sur une touche ou que le délai de 300 ms soit écoulé  
-    timeout(TEMPS_PAR_NOTE); // définit un délai de 300 ms avant que getch() ne renvoie ERR  
-    char c = getch();  
-  
-    // enregistre l'heure actuelle dans la variable finNote 
-    time_t finNote; 
-    time(&finNote); 
- 
-    // calcule le temps de réaction en utilisant la différence entre debutNote et finNote 
-    double tempsReaction = difftime(debutNote, finNote); 
-  
-    // vérifie si la touche appuyée est la bonne  
-    if (c == partitionEnCours[i]) {  
-      // touche correcte, incrémente le monScore en fonction du délai  
-      if (tempsReaction <= DELTA_T_PERFECT) {  
-        monScore += SCORE_PERFECT;  
-        mvprintw(LINES - 1, 0, "PERFECT!");  
-      } else if (tempsReaction <= DELTA_T_GOOD) {
-        monScore += SCORE_GOOD;  
-        mvprintw(LINES - 1, 0, "GOOD!");  
-      }  else if (tempsReaction <= DELTA_T_BAD) {  
-        monScore += SCORE_BAD;  
-        mvprintw(LINES - 1, 0, "BAD...");  
-      }  else {  
-        // pas de touche appuyée dans le délai de 300 ms 
-        monScore += SCORE_WORSE;  
-        mvprintw(LINES - 1, 0, "MISS...");  
-      }}
-  
-    // met à jour l'affichage et attend avant de passer au caractère suivant  
-    refresh();  
-    nanosleep((const struct timespec[]){{0, TEMPS_PAR_NOTE * 1000000L}}, NULL); 
-    }  
-  
-  endwin(); // termine l'interface ncursed  
+    char saisies[sizeof partitionEnCours]; // tableau pour stocker les touches saisies par l'utilisateur 
+    char keyPressed;
+    float tempsReaction;
+    struct timespec debutNote, finNote, aRetirer;
+    int monScore = 0; // monScore du joueur  
+    char charToPrint =' ';
+    int i;  
+
+    initscr(); // initialise l'interface ncursed  
+    cbreak(); // désactive l'affichage des caractères saisis par l'utilisateur  
+    curs_set(0); // cache le curseur  
+
+    mvprintw(LINES - 1, 29, "%c", '-'); // ajoute une ligne de tiret en bas de l'écran 
+    mvprintw(LINES - 1, 31, "%c", '-'); // ajoute une ligne de tiret en bas de l'écran 
+
+    while(!finPartie){
+        //on demande la sasie du caractère
+        refresh();
+        if(partitionEnCours[flagPartition] != '-'){
+            timeout(DELTA_T_BAD - 20);
+            timespec_get(&debutNote, TIME_UTC);
+            keyPressed = getch();
+            timespec_get(&finNote, TIME_UTC);
+            tempsReaction = (float)((finNote.tv_nsec * (float)1000000) - (debutNote.tv_nsec * (float)1000000)) ;
+            attribuerNote(tempsReaction);
+            printw("clé pressé : %c, temps réaction %2.1f, flag : %d", keyPressed, tempsReaction, flagPartition);
+        }
+        for(i = 0; i < 10; i++){
+            //partitionEnCours[flagPartition + i] == '-' || 
+            if(flagPartition + i > strlen(partitionEnCours)) charToPrint = ' ';
+            else charToPrint = partitionEnCours[flagPartition + i];
+            mvprintw(LINES - 1 - i, 30, "%c", charToPrint);
+        }
+        refresh();
+
+        mvprintw(LINES - 1, 5, "%s", scoreLastNote);
+        mvprintw(2, 5, "%2.1f", (flagPartition / strlen(partitionEnCours)* 100)); 
+        timespec_get(&aRetirer, TIME_UTC);
+        sleep(1);
+        flagPartition++;
+        //usleep((350 - (debutNote.tv_nsec - aRetirer.tv_nsec)) * 1000);
+    }
+
+    endwin(); // termine l'interface ncursed  
     pthread_exit;
 }
 
