@@ -2,7 +2,7 @@
  * @file client.c
  * @author MMR, FTAFFIN
  * @brief 
- * @version 0.1
+ * @version 1.0
  * @date 2022-11-29
  * 
  * @copyright Copyright (c) 2022
@@ -26,10 +26,10 @@
 
 //TODO: pour une prochaine versions on pourrait avec un temps différents entre chaque notes
 //TODO temps qu'on pourrait observer dans les partitions
-#define TEMPS_PAR_NOTE 350 //en millisecondes
-#define DELTA_T_PERFECT 100 //ms
-#define DELTA_T_GOOD 200 //ms
-#define DELTA_T_BAD 300 //msg
+#define TEMPS_PAR_NOTE 500 //en millisecondes doit être multiple de (100)
+#define DELTA_T_PERFECT 250 //ms
+#define DELTA_T_GOOD 300 //ms
+#define DELTA_T_BAD 400 //ms
 
 #define SCORE_PERFECT 500
 #define SCORE_GOOD 200
@@ -47,7 +47,9 @@ void clientDeroute(int, siginfo_t*, void*);
 void *routineAffichage(void *);
 void *routineEnvoieScore(void *);
 void *routineReceptionScore(void *);
-void attribuerNote(int tempsReaction);
+void attribuerNote(int tempsReaction, char cle);
+void printScoreBoard();
+void flushgetch();
 /*******************************************************************************************************/
 // variables globales
 
@@ -64,9 +66,9 @@ contentScore1J_t scoreTousJoueurs[4];// les pids et scores des joueurs
 /*******************************************************************************************************/
 
 void printAllScore(){
-    printf("my Score : %d\n", monScore);
+    printf("mon Score : %d\n", monScore);
     for(int i =0; i < nbJoueur; i++){
-        printf("score de %d : %d\n", scoreTousJoueurs[i].pidJoueur, scoreTousJoueurs[i].score);
+        if(scoreTousJoueurs[i].pidJoueur != 0) printf("score de %d : %d\n", scoreTousJoueurs[i].pidJoueur, scoreTousJoueurs[i].score);
     }
 }
 
@@ -90,6 +92,10 @@ int main(){
     finPartie = 0;
     monScore = 0;
     scoreLastNote[0] = '\0';
+
+    //TODO : ajouter gestion de pseudo
+    //TODO : fix stack smashing at ending 
+    //TODO ; ajouter des fichier logs et système de classement pas point et par pseudo
     //TODO : replace alarm with "sleep" to avoid interferences between the signal and the
     //message queues that also uses signals 
 
@@ -131,6 +137,7 @@ int main(){
     if(preGame.content.nbJoueur < 2){
       printf("[client] %d : pas assez de joueurs, fin du programme\n", getpid());
       finPartie = 1;
+      return;
     }
 
     nbJoueur = preGame.content.nbJoueur;
@@ -138,15 +145,12 @@ int main(){
     pthread_create(&threadEnvoieScore, NULL, routineEnvoieScore, NULL);
     pthread_create(&threadReceptionScore, NULL, routineReceptionScore, NULL);
     //fin de préparation début de partie
-    flagPartition = 0;
     pthread_create(&threadAffichage, NULL, routineAffichage, NULL);
-    //partie en cours
 
+    pthread_join(threadEnvoieScore, NULL);
     pthread_join(threadReceptionScore, NULL);
     pthread_join(threadAffichage, NULL);
-    pthread_join(threadEnvoieScore, NULL);
     
-
     return 0;
 }
 
@@ -197,7 +201,7 @@ void CHECK(int code, char * toprint){
 void *routineEnvoieScore(void* noth){
     score1J_t scoreMsg;
 
-    while(1){
+    while(flagPartition < TAILLE_PARTITION){
         scoreMsg.mtype = MTYPE_MAJSCORE_1J;
         scoreMsg.content.pidJoueur = getpid();
         scoreMsg.content.score = monScore;
@@ -205,6 +209,11 @@ void *routineEnvoieScore(void* noth){
         //printf("[routine score envoie] %d : score enoyé au serveur : %d\n", getpid(), scoreMsg.content.score );
         sleep(3);
     }
+    scoreMsg.mtype = MTYPE_FIN_PARTITION;
+    scoreMsg.content.pidJoueur = getpid();
+    scoreMsg.content.score = monScore;
+    msgsnd(msqidServeur, &scoreMsg, sizeof(scoreMsg), 0);
+    pthread_exit;
 }
 
 /**
@@ -215,6 +224,9 @@ void *routineEnvoieScore(void* noth){
 void *routineReceptionScore(void * noth){
     scoreAll_t scores;
     int i;
+
+    //TODO: fix scoreboard bug
+    //TODO : améliorer le chronométrage
 
     do{
         //printf("[routine score reception] %d : attente score\n", getpid());
@@ -230,6 +242,9 @@ void *routineReceptionScore(void * noth){
         //printAllScore();
         sleep(1);
     }while(scores.mtype != MTYPE_FIN_PARTIE);
+    finPartie = 1;
+    printf("La partie est terminée voici les scores \n");
+    printAllScore();
     pthread_exit;
 }
 
@@ -237,23 +252,33 @@ void *routineReceptionScore(void * noth){
  * @brief recupere un temps en milliseconde et attribut au joueur un score
  * 
  * @param tempsReaction le temps en milliseconde
+ * @param cle la clé pressée
  */
-void attribuerNote(int tempsReaction){
+void attribuerNote(int tempsReaction, char cle){
+    if(cle != partitionEnCours[flagPartition]){
+        monScore += SCORE_WORSE;
+        strcpy(scoreLastNote, "WRONG  ");
+        return;
+    }
     if(tempsReaction <= DELTA_T_PERFECT){
         monScore += SCORE_PERFECT;
         strcpy(scoreLastNote, "PERFECT");
+        return;
     }
-    if(tempsReaction <= DELTA_T_GOOD && tempsReaction > DELTA_T_PERFECT){
+    if(tempsReaction <= DELTA_T_GOOD ){
         monScore += SCORE_GOOD;
-        strcpy(scoreLastNote, "GOOD");
+        strcpy(scoreLastNote, "GOOD   ");
+        return;
     } 
-    if(tempsReaction <= DELTA_T_BAD && tempsReaction > DELTA_T_GOOD){
+    if(tempsReaction <= DELTA_T_BAD){
         monScore += SCORE_BAD;
-        strcpy(scoreLastNote, "BAD");
+        strcpy(scoreLastNote, "BAD    ");
+        return;
     }
-    if(tempsReaction > DELTA_T_BAD){
+    else{
         monScore += SCORE_WORSE;
-        strcpy(scoreLastNote, "MISS");
+        strcpy(scoreLastNote, "MISS   ");
+        return;
     }
 }
 
@@ -274,38 +299,49 @@ void *routineAffichage(void * noth){
     char charToPrint =' ';
     int i;  
 
+    flagPartition = 0;
+
     initscr(); // initialise l'interface ncursed  
-    cbreak(); // désactive l'affichage des caractères saisis par l'utilisateur  
-    curs_set(0); // cache le curseur  
+    cbreak(); // désactive l'affichage des caractères saisis par l'utilisateur
+    //halfdelay(TEMPS_PAR_NOTE / 100);
+    curs_set(0); // cache le curseur
+    //on clean  
+    erase();
 
-    mvprintw(LINES - 1, 29, "%c", '-'); // ajoute une ligne de tiret en bas de l'écran 
-    mvprintw(LINES - 1, 31, "%c", '-'); // ajoute une ligne de tiret en bas de l'écran 
-
-    while(!finPartie){
+    while(flagPartition < TAILLE_PARTITION){
+        for(i = 0; (i < 10 && (flagPartition + i) < TAILLE_PARTITION); i++){
+            if(partitionEnCours[flagPartition + i] != '-'){
+                charToPrint = partitionEnCours[flagPartition + i];
+            }
+            else charToPrint = ' ';
+            mvprintw(LINES - 1 - i, 30, "%c ", charToPrint);
+        }
+        refresh();
         //on demande la sasie du caractère
-        refresh();
         if(partitionEnCours[flagPartition] != '-'){
-            timeout(DELTA_T_BAD - 20);
             timespec_get(&debutNote, TIME_UTC);
+            timeout(DELTA_T_BAD - 20);
             keyPressed = getch();
+            //scanw("%c", &keyPressed);
             timespec_get(&finNote, TIME_UTC);
-            tempsReaction = (float)((finNote.tv_nsec * (float)1000000) - (debutNote.tv_nsec * (float)1000000)) ;
-            attribuerNote(tempsReaction);
-            printw("clé pressé : %c, temps réaction %2.1f, flag : %d", keyPressed, tempsReaction, flagPartition);
+            tempsReaction = abs((float)(finNote.tv_nsec - debutNote.tv_nsec) / 1000000) ;
+            attribuerNote(tempsReaction, keyPressed);
+            mvprintw(5, 0,"cle presse : %c, temps reaction %.2f, flag : %d     ", keyPressed, tempsReaction, flagPartition);
         }
-        for(i = 0; i < 10; i++){
-            //partitionEnCours[flagPartition + i] == '-' || 
-            if(flagPartition + i > strlen(partitionEnCours)) charToPrint = ' ';
-            else charToPrint = partitionEnCours[flagPartition + i];
-            mvprintw(LINES - 1 - i, 30, "%c", charToPrint);
-        }
+        printScoreBoard();
+        mvprintw(LINES - 1, 5, "%s", scoreLastNote);
+        mvprintw(2, 5, "completed : %f%", ((float)flagPartition / TAILLE_PARTITION)* 100); 
+        timespec_get(&aRetirer, TIME_UTC);
+        usleep(TEMPS_PAR_NOTE * 1000);
+        flagPartition++;
+        //flushgetch();
+        keyPressed = ' ';
+        //erase();
+        mvprintw(LINES - 1, 26, "%s", "---"); // ajoute une ligne de tiret en bas de l'écran 
+        mvprintw(LINES - 1, 32, "%s", "---"); // ajoute une ligne de tiret en bas de l'écran 
         refresh();
 
-        mvprintw(LINES - 1, 5, "%s", scoreLastNote);
-        mvprintw(2, 5, "%2.1f", (flagPartition / strlen(partitionEnCours)* 100)); 
-        timespec_get(&aRetirer, TIME_UTC);
-        sleep(1);
-        flagPartition++;
+        //TODO : sleep the right amount of time instaed of TEMPS_PAR_NOTE here
         //usleep((350 - (debutNote.tv_nsec - aRetirer.tv_nsec)) * 1000);
     }
 
@@ -313,4 +349,33 @@ void *routineAffichage(void * noth){
     pthread_exit;
 }
 
+/**
+ * @brief imprime le classement sur l'écran
+ * 
+ */
+void printScoreBoard(){
+    int i;
 
+    mvprintw(1, COLS - 30, "SCOREBOARD");
+    mvprintw(2, COLS - 30, "mon score : %5d", monScore);
+    for(i = 0; i < nbJoueur; i++){
+        if(scoreTousJoueurs[i].pidJoueur && scoreTousJoueurs[i].pidJoueur != getpid()){
+            mvprintw(3+i, COLS - 30, " %d : %5d", scoreTousJoueurs[i].pidJoueur, scoreTousJoueurs[i].score);
+        }
+    }
+    return;
+}
+
+/**
+ * @brief on nettoie la sortie si on a plusieurs char dans le buffer
+ * 
+ */
+void flushgetch() {
+    int c;
+    do{
+        c = getch();
+    }
+    while ((c != '\n') && (c!= ERR));
+
+    return; 
+}

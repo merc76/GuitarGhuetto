@@ -16,7 +16,7 @@
 #define MAX_JOUEUR_DEFAUT 4
 #define TEMPS_DEBUT_PARTIE_DEFAUT 120
 #define FIC_BAL "./BALREP"
-#define TAILLE_PARTITION 250
+#define TAILLE_PARTITION 126
 #define NB_PARTITION 3
 
 #define MTYPE_ENVOI_PARTITION 11
@@ -31,9 +31,9 @@
 //variables globales
 
 const char partitionListe[NB_PARTITION][TAILLE_PARTITION] = {
-    "-----------------------Z-Z---S-Q--D-S-----Z-Z-D-S----------ZQS-SZ--QS-----------------------",
-    "-----------------------Z-Z---S-Q--D-S-----Z-Z-D-S----------ZQS-SZ--QS-----------------------",
-    "-----------------------Z-Z---S-Q--D-S-----Z-Z-D-S----------ZQS-SZ--QS-----------------------"
+    "-------z-z---s-q--d-q-----z-z-d-s----------zqs-sz--qs-----------------z-z---s-q--d-q-----z-z-d-s----------zqs-sz--qs----------",
+    "-------z-z---s-q--d-q-----z-z-d-s----------zqs-sz--qs-----------------z-z---s-q--d-q-----z-z-d-s----------zqs-sz--qs----------",
+    "-------z-z---s-q--d-q-----z-z-d-s----------zqs-sz--qs-----------------z-z---s-q--d-q-----z-z-d-s----------zqs-sz--qs----------"
 };
 /*********************************************************************************************************/
 //strcutures de messages

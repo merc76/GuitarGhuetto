@@ -104,8 +104,12 @@ int main(int argc, char * argv[]){
     pthread_create(&threadLireScore, NULL, lireScoreRoutine, NULL);
     pthread_create(&threadEnvoiScore, NULL, envoyerScoreRoutine, NULL);
     pthread_join(threadLireScore, NULL);
+    pthread_join(threadEnvoiScore, NULL);
     //si on arrive ici c'est que tous les joueurs ont finis leurs partie
-    finPartie = 1;
+    printf("Voici les score finaux : \n\n");
+    for(int i =0; i< nbJoueurs; i++){
+        printf("Joueur n°%d, pid : %d, score : %d\n",i, metaJoueurs[i].pid, metaJoueurs[i].score);
+    }
     sleep(10);
     detruireQueues();
 
@@ -176,7 +180,7 @@ void CHECK(int code, char * toprint){
 void creerQueue(pid_t pid){
     printf("creationQueue\n");
     metaJoueurs[nbJoueurs].pid = pid;
-    CHECK(metaJoueurs[nbJoueurs].cle = ftok(FIC_BAL, pid), "problème ftok");
+    CHECK(metaJoueurs[nbJoueurs].cle = ftok(FIC_BAL, pid), "problème ftok\n");
     CHECK(metaJoueurs[nbJoueurs].msqid = msgget(metaJoueurs[nbJoueurs].cle, IPC_CREAT | IPC_EXCL | 0666), "problème msgget");
     nbJoueurs++;
     printf("fin creationQueue\n");
@@ -190,12 +194,11 @@ void creerQueue(pid_t pid){
  */
 void detruireQueues(){
     int i;
-    char tmp[100];
 
     for(i=nbJoueurs - 1 ; i >= 0; i--){
-        sprintf(tmp, "erreur suppression queue pid n° %d", metaJoueurs[i].pid);
-        CHECK(msgctl(metaJoueurs[i].msqid, IPC_RMID, NULL), tmp);
+        CHECK(msgctl(metaJoueurs[i].msqid, IPC_RMID, NULL), "erreur suppression queues\n");
     }
+    printf("toutes les files sont supprimées \n");
 }
 
 /**
@@ -232,12 +235,15 @@ void * lireScoreRoutine(){
             msgrcv(metaJoueurs[nbClient].msqid, &score, sizeof(score), MTYPE_FIN_PARTITION, IPC_NOWAIT);
             metaJoueurs[nbClient].score = score.content.score;
             printf("score joueur n° %d Receptionned : %d \n", metaJoueurs[nbClient].pid, metaJoueurs[nbClient].score);
-            if(score.mtype == MTYPE_FIN_PARTITION) nbFinPartition ++;
+            if(score.mtype == MTYPE_FIN_PARTITION){
+                nbFinPartition ++;
+                printf("joueurs N°%d, a terminé sa partition\n", score.content.pidJoueur);
+            }
             sleep(1);
         }    
     }while(nbFinPartition < nbJoueurs);
-    printf("tous les joueurs on finit leur partition");
-
+    finPartie = 1;
+    printf("tous les joueurs on finit leur partition\n");
     pthread_exit;
 }
 
