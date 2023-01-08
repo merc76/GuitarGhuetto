@@ -66,9 +66,8 @@ contentScore1J_t scoreTousJoueurs[4];// les pids et scores des joueurs
 /*******************************************************************************************************/
 
 void printAllScore(){
-    printf("mon Score : %d\n", monScore);
     for(int i =0; i < nbJoueur; i++){
-        if(scoreTousJoueurs[i].pidJoueur != 0) printf("score de %d : %d\n", scoreTousJoueurs[i].pidJoueur, scoreTousJoueurs[i].score);
+        printf("score de %d : %d\n", scoreTousJoueurs[i].pidJoueur, scoreTousJoueurs[i].score);
     }
 }
 
