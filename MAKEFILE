@@ -4,13 +4,13 @@ P=-pthread
 N=-lncurses
 
 serveur: serveur.c serveur.h GuitarGhetto.h 
-        $(CC) $(CFLAGS) serveur.c -o serveur $(P)
+    $(CC) $(CFLAGS) serveur.c -o serveur $(P)
 
 client: client.c client.h Gdefinitions.h
-        $(CC) $(CFLAGS) client.c -o client $(P) $(N)
+    $(CC) $(CFLAGS) client.c -o client $(P) $(N)
 
 all: serveur client
 
 clean:
-        rm -f serveur client
+    rm -f serveur client
 
