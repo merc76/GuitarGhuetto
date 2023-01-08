@@ -137,7 +137,7 @@ int main(){
     if(preGame.content.nbJoueur < 2){
       printf("[client] %d : pas assez de joueurs, fin du programme\n", getpid());
       finPartie = 1;
-      return;
+      return 0;
     }
 
     nbJoueur = preGame.content.nbJoueur;
