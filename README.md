@@ -44,9 +44,12 @@ Il vous faudra donc un terminal Linux et un GCC à jour
    ```
 2. Exécuter notre makefile pour compiler la dernière version de notre jeu 
    
-3. Exécuter le serveur avec ./serveur nbJoueurMax tempsDebutPartie
-    nbJoueurs le nombre max de joueurs pouvant entre dans la partie e[2-4]
-    tempsDebutPartie le temps en seconde avant le début de la partie e[60-280]
+3. Exécuter le serveur avec
+   ```sh
+   ./serveur nbJoueurMax tempsDebutPartie
+   ```
+    *nbJoueurs le nombre max de joueurs pouvant entre dans la partie e[2-4]*  
+    *tempsDebutPartie le temps en seconde avant le début de la partie e[60-280]*
 
 4. Exécuter le client 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
